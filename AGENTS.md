@@ -151,8 +151,9 @@ API Key, Token, Password, Secret, 인증서, 실제 `.env` 값 등
 공유 파일의 기본 용도:
 
 - `shared/TASK.md`: 현재 작업 목표
+- `shared/DECISIONS.md`: 사용자가 확정해야 하는 중요한 방향과 결정 결과
 - `shared/context.md`: 현재 진행 상태와 세션 인계
-- `shared/DESIGN.md`: 설계 및 의사결정
+- `shared/DESIGN.md`: 설계 및 구현 방향
 - `shared/IMPLEMENTATION.md`: 실제 구현 결과
 - `shared/REVIEW.md`: 독립 검증 결과
 - `shared/RESULT.md`: 작업 주기의 최종 상태 요약
@@ -200,6 +201,7 @@ Git 기록과 문서 작성 정보는 서로 보완 관계로 사용한다.
 
 문서별 기본 작성 책임은 다음과 같다.
 
+- `shared/DECISIONS.md`: 중요한 사용자 판단을 요청하거나 확정 결과를 기록하는 AI
 - `shared/DESIGN.md`: Claude
 - `shared/IMPLEMENTATION.md`: Codex
 - `shared/REVIEW.md`: Gemini 또는 구현에 참여하지 않은 독립 검수 AI
@@ -258,9 +260,13 @@ AI가 요구사항과 실제 코드 기준으로 최선의 방향을 판단한�
 - AI 간 설계/구현/검수 의견 충돌
 - 여러 대안이 있고 결과 동작 자체가 달라지는 경우
 
+중요한 사용자 의사결정은 `shared/DECISIONS.md`에 기록한다. 확정되지 않은 결정은
+AI가 임의로 확정하지 않으며, 작은 내부 구현 세부는 DECISIONS 대상으로 만들지 않는다.
+구현 AI는 관련 결정의 확정 여부를 확인하고 검수 AI는 구현과 확정 결정의 일치 여부를 확인한다.
+
 AI 간 의견이 충돌할 때(예: 검수에서 설계 자체를 문제로 지적):
 
-- 충돌 내용, 각 근거, 영향 범위를 `shared/REVIEW.md` 또는 `shared/context.md`에 기록한다.
+- 충돌 내용과 선택지는 `shared/DECISIONS.md`에, 검수 근거는 `shared/REVIEW.md`에 기록한다.
 - AI끼리 임의로 해결하지 않고 사용자에게 판단을 요청한다.
 
 ## 12. 완료 기준

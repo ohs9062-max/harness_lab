@@ -15,11 +15,20 @@
 - `shared/` — 작업 목표, 사용자 결정, 설계, 구현, 검수, 인계 및 결과 문서
 - `demo/` — 실제 코드 작성 및 수정 영역
 
+## 현재 상태
+
+- 하네스 기본 문서와 역할별 정책 구성을 완료했다.
+- 첫 파이프라인 데모인 JSON 설정 조회 CLI를 구현·독립 검수하고 `master`에 반영했다.
+- 데모 사용법은 `demo/README.md`, 실제 작업 결과는 `shared/RESULT.md`에서 확인한다.
+
 ## 시작
 
 사용자는 `WORKFLOW.md`에서 작업 시작, 역할 릴레이, checkpoint, worktree 검수,
 최종 판단까지의 운영 순서를 확인한다. AI는 `AGENTS.md`와 자신의 역할 문서를
 정본으로 삼고 현재 `shared/TASK.md`와 `shared/context.md`를 확인한다.
+
+기본 순서는 `WORKFLOW 확인 → TASK 작성 → 역할별 작업 → REVIEW → RESULT`이다.
+`shared/` 문서는 현재 작업 주기의 기록이며 다음 작업을 시작할 때 새 TASK에 맞춰 갱신한다.
 
 ## 외부 프로젝트 적용
 

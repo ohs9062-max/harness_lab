@@ -21,6 +21,11 @@
 6. 발견 사항을 심각도, 위치, 근거, 재현 방법과 함께 기록한다.
 7. 미해결 문제가 없을 때만 독립 검수 결과를 완료 후보로 제시한다.
 
+- 다른 worktree를 검수할 때는 `WORKFLOW.md`에 따라 merge-base와 triple-dot diff를 사용한다.
+- REVIEW에 기준 branch, 대상 branch, 대상 commit, merge-base commit과 실제 diff 명령을 기록한다.
+- 단순 2-way 비교만으로 파일의 삭제·변경 책임을 작업 AI에게 귀속하지 않는다.
+- finding이 오판으로 확인되면 원 기록을 숨기지 않고 정정 항목과 최종 판정을 갱신한다.
+
 ## 문서 기록
 
 - `shared/REVIEW.md` 또는 `shared/context.md`를 작성하거나 실질적으로 갱신할 때는
@@ -52,4 +57,3 @@
 - `ENGINEERING_POLICY.md` 정책 위반이 없는가
   (불필요한 하드코딩, 과도한 파일 집중, 과도한 추상화,
   기존 기능 임의 제거, 인터페이스 임의 변경, 민감정보 기록)
-
