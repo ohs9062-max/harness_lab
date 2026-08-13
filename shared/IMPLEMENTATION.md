@@ -1,8 +1,12 @@
 # 구현 기록
 
-## TASK-ID
+## 작성 정보
 
-(현재 작업의 TASK-ID를 적는다)
+- 작성자: Codex
+- 모델: GPT-5
+- 역할: 구현
+- 작성일: 2026-08-13
+- TASK-ID: TASK-2026-08-13-001
 
 Codex가 실제 구현과 자체 검증 결과를 기록한다. 이 문서는 최종 승인서가 아니다.
 
@@ -10,7 +14,7 @@ Codex가 실제 구현과 자체 검증 결과를 기록한다. 이 문서는 �
 
 - `demo/config_cli.py`는 JSON 설정 파일을 표준 라이브러리 `json`으로 읽고, 하나의 key 인자를 받아 값을 출력한다.
 - 설정값은 `demo/config.json`에 분리했으며, 현재 `robot_name` 값은 `litbot`이다.
-- 인자 누락, 설정 파일 읽기 또는 JSON 파싱 실패, JSON 최상위 값이 객체가 아닌 경우, 없는 key를 명확한 오류와 비영(0) 종료 코드로 처리한다.
+- 인자 누락, 설정 파일 읽기 또는 JSON 파싱 실패, JSON 최상위 값이 객체가 아닌 경우, 없는 key를 명확한 오류와 0이 아닌 종료 코드로 처리한다.
 - YAML은 표준 라이브러리에 파서가 없으므로 요구사항에서 허용한 JSON 형식을 선택했다. 외부 라이브러리는 추가하지 않았다.
 
 ## 변경 파일
@@ -19,6 +23,12 @@ Codex가 실제 구현과 자체 검증 결과를 기록한다. 이 문서는 �
 - `demo/config.json`: 코드에서 분리된 데모 설정값을 추가했다.
 - `shared/IMPLEMENTATION.md`: 구현 및 자체 검증 결과를 기록했다.
 - `shared/context.md`: Gemini 검수용 인계 상태를 갱신했다.
+
+## Git 기준
+
+- 작업 branch: `ohs9062-max/harness-demo-task-codex`
+- 기준 commit: `23c79a5`
+- 구현 commit: `49dc64c`
 
 ## 실행 및 테스트
 
@@ -43,6 +53,7 @@ python3 demo/config_cli.py robot_name
 - 인자 없음: `ERROR: provide exactly one key`, 종료 코드 2.
 - 설정 파일을 일시적으로 없앤 경우: `ERROR: could not read configuration: [Errno 2] No such file or directory: '.../demo/config.json'`, 종료 코드 1.
 - 설정 파일을 복원한 뒤 재조회: `litbot`, 종료 코드 0.
+- 사후 격리 검증에서 손상된 JSON과 최상위 배열을 각각 실행했고 모두 종료 코드 1을 확인했다.
 
 ## 설계와의 차이
 

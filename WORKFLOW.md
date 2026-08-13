@@ -52,7 +52,8 @@ master
 
 ## 4. local checkpoint commit
 
-AI 간 인계 전에는 검수 가능한 변경과 관련 문서를 local checkpoint commit으로 고정한다.
+AI 간 인계 전에는 검수 가능한 변경과 관련 문서를 local checkpoint commit으로 고정하고,
+인계 문서에 검수 대상 branch와 commit hash를 기록한다.
 커밋 실행과 범위는 `AGENTS.md`의 승인 정책을 따르며, 사용자 지시 없이 임의로 commit하지 않는다.
 
 ```text
@@ -79,6 +80,8 @@ git diff master...<work-branch>
 
 현재 master와 다르다는 사실만으로 작업 AI가 파일을 삭제하거나 변경했다고 단정하지 않는다.
 즉, `현재 master와 다름`은 `작업 AI가 해당 내용을 삭제/변경함`과 같지 않다.
+검수 문서에는 기준 branch, 대상 branch, 대상 commit, merge-base commit과 실제 diff 명령을 남긴다.
+finding의 사실관계가 나중에 잘못된 것으로 확인되면 원 기록을 숨기지 않고 정정 항목을 추가한다.
 
 ## 6. 사용자 의사결정
 
@@ -98,7 +101,7 @@ git diff master...<work-branch>
 
 Gemini 또는 구현에 참여하지 않은 독립 검수 AI가 `shared/REVIEW.md`를 작성하면
 사용자가 최종 판단한다. `shared/RESULT.md`에는 `채택`, `수정 후 채택`, `폐기`,
-`보류` 중 하나와 판단 근거를 기록한다.
+`보류` 중 하나와 판단 근거, 최종 branch·commit, merge 및 push 여부를 기록한다.
 
 작업 종료 후 다음 TASK를 시작하기 전에 `AGENTS.md`의 보존 규칙에 따라 shared 문서
 상태를 정리하고, 새 TASK-ID와 `shared/TASK.md`로 다음 작업 주기를 시작한다.
