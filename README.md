@@ -6,6 +6,7 @@
 ## 구조
 
 - `README.md` — 하네스의 목적과 문서 구조 안내
+- `CHANGELOG.md` — 하네스 정책·역할·문서 구조의 의미 있는 변경 이력
 - `AGENTS.md` — AI 협업, 권한, Git 안전 규칙의 정본
 - `ENGINEERING_POLICY.md` — 코드 구현 원칙의 정본
 - `WORKFLOW.md` — 사용자를 위한 실제 운영 순서
@@ -13,6 +14,7 @@
 - `codex/` — Codex 역할 정의
 - `gemini/` — Gemini 역할 정의
 - `shared/` — 작업 목표, 사용자 결정, 설계, 구현, 검수, 인계 및 결과 문서
+  - `shared/README.md` — shared 문서별 책임, 작업 주기와 초기화 기준
 - `demo/` — 실제 코드 작성 및 수정 영역
 
 ## 현재 상태
@@ -29,6 +31,8 @@
 
 기본 순서는 `WORKFLOW 확인 → TASK 작성 → 역할별 작업 → REVIEW → RESULT`이다.
 `shared/` 문서는 현재 작업 주기의 기록이며 다음 작업을 시작할 때 새 TASK에 맞춰 갱신한다.
+새 TASK 전 보존·초기화 절차는 `shared/README.md`, 하네스 자체의 누적 변화는
+`CHANGELOG.md`에서 확인한다.
 
 ## 외부 프로젝트 적용
 

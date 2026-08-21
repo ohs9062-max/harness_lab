@@ -3,63 +3,56 @@
 ## 작성 정보
 
 - 작성자: Codex
-- 모델: GPT-5
+- 모델: 확인 불가
 - 역할: 구현
-- 작성일: 2026-08-13
-- TASK-ID: TASK-2026-08-13-001
+- 작성일: 2026-08-21
+- TASK-ID: TASK-2026-08-21-001
 
-Codex가 실제 구현과 자체 검증 결과를 기록한다. 이 문서는 최종 승인서가 아니다.
+## 구현 상태
+
+- 문서 구현 및 자체 검증 완료.
+- 독립 검수와 사용자 최종 판단은 아직 수행되지 않았다.
 
 ## 구현 내용
 
-- `demo/config_cli.py`는 JSON 설정 파일을 표준 라이브러리 `json`으로 읽고, 하나의 key 인자를 받아 값을 출력한다.
-- 설정값은 `demo/config.json`에 분리했으며, 현재 `robot_name` 값은 `litbot`이다.
-- 인자 누락, 설정 파일 읽기 또는 JSON 파싱 실패, JSON 최상위 값이 객체가 아닌 경우, 없는 key를 명확한 오류와 0이 아닌 종료 코드로 처리한다.
-- YAML은 표준 라이브러리에 파서가 없으므로 요구사항에서 허용한 JSON 형식을 선택했다. 외부 라이브러리는 추가하지 않았다.
-
-## 변경 파일
-
-- `demo/config_cli.py`: JSON 설정 조회 CLI를 추가했다.
-- `demo/config.json`: 코드에서 분리된 데모 설정값을 추가했다.
-- `shared/IMPLEMENTATION.md`: 구현 및 자체 검증 결과를 기록했다.
-- `shared/context.md`: Gemini 검수용 인계 상태를 갱신했다.
+- `CHANGELOG.md`: 하네스 자체의 의미 있는 변경을 TASK 기록과 분리해 누적하는 기준을 추가했다.
+- `shared/README.md`: 문서별 책임, 작업 주기, 초기화 기준, 상태 구분과 새 TASK 점검표를 추가했다.
+- `README.md`: 새 문서 두 개를 구조와 시작 안내에 연결했다.
+- `WORKFLOW.md`: 이전 기록 보존 확인, TASK-ID 중복 확인, shared 초기화 순서를 작업 시작 절차에 명시했다.
+- `shared/` 작업 문서 7개를 `TASK-2026-08-21-001` 기준으로 초기화하고 현재 상태를 기록했다.
 
 ## Git 기준
 
-- 작업 branch: `ohs9062-max/harness-demo-task-codex`
-- 기준 commit: `23c79a5`
-- 구현 commit: `49dc64c`
+- 작업 branch: `ohs9062-max/sol-low-to-middle`
+- 기준 commit: `ed672fa`
+- 구현 commit: 없음(사용자 승인 없이 commit하지 않음)
 
-## 실행 및 테스트
+## 자체 검증
 
-다음 명령을 직접 실행했다.
+다음 검증을 직접 실행했다.
 
 ```sh
-python3 -m py_compile demo/config_cli.py
-python3 demo/config_cli.py robot_name
-python3 demo/config_cli.py unknown_key
-python3 demo/config_cli.py
-mv demo/config.json demo/config.json.testing-backup
-python3 demo/config_cli.py robot_name
-mv demo/config.json.testing-backup demo/config.json
-python3 demo/config_cli.py robot_name
+git diff --check
+test -f CHANGELOG.md
+test -f shared/README.md
+rg -n 'CHANGELOG\.md|shared/README\.md' README.md WORKFLOW.md shared/README.md
+rg -l 'TASK-2026-08-21-001' <shared 작업 문서 7개> | wc -l
+rg -n 'TASK-2026-08-13-001' <shared 작업 문서 7개>
+git status --short
+git diff --name-status
 ```
+
+예상 결과:
+
+- 공백 오류가 없고 새 문서 두 개가 존재한다.
+- 루트 안내 문서에서 새 문서를 참조한다.
+- shared 작업 문서 7개가 모두 현재 TASK-ID를 포함하며 이전 TASK-ID는 포함하지 않는다.
+- 변경 범위가 승인된 문서 11개에 한정된다.
 
 실제 결과:
 
-- 컴파일 검사: 종료 코드 0.
-- 존재하는 key: `litbot`, 종료 코드 0.
-- 없는 key: `ERROR: key 'unknown_key' not found`, 종료 코드 1.
-- 인자 없음: `ERROR: provide exactly one key`, 종료 코드 2.
-- 설정 파일을 일시적으로 없앤 경우: `ERROR: could not read configuration: [Errno 2] No such file or directory: '.../demo/config.json'`, 종료 코드 1.
-- 설정 파일을 복원한 뒤 재조회: `litbot`, 종료 코드 0.
-- 사후 격리 검증에서 손상된 JSON과 최상위 배열을 각각 실행했고 모두 종료 코드 1을 확인했다.
-
-## 설계와의 차이
-
-- Claude 설계 문서는 이번 데모에 대해 작성되지 않았다. 사용자 지시에 따라 Codex가 최소 설계 판단과 구현을 함께 수행했다.
-
-## 검수 요청 사항
-
-- Gemini는 실제 변경 파일과 위 명령을 독립적으로 확인하고, 요구사항에 없는 구조나 의존성이 추가되지 않았는지 검수한다.
-- 설정 파일이 없거나 손상됐을 때의 오류 메시지와 종료 코드가 사용 목적에 충분히 명확한지 확인한다.
+- 전체 검증 명령 종료 코드 0.
+- `git diff --check` 오류 없음.
+- 새 문서 두 개 존재 및 README/WORKFLOW 참조 확인.
+- 현재 TASK-ID 포함 문서 7개, 이전 TASK-ID 잔재 0개.
+- 변경 파일은 신규 2개와 수정 9개, 총 11개이며 코드·설정 변경 없음.

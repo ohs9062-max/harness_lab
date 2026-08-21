@@ -13,11 +13,14 @@ AI 협업·권한·Git 안전 규칙은 `AGENTS.md`, 코드 원칙은 `ENGINEERI
 
 ## 1. 작업 시작
 
-1. 작업 목표와 완료 기준을 확인한다.
-2. `TASK-YYYY-MM-DD-NNN` 형식으로 TASK-ID를 정한다.
-3. `shared/TASK.md`에 목표, 범위, 완료 기준을 작성한다.
-4. 이어지는 사용자 결정이 있으면 `shared/DECISIONS.md`를 확인한다.
-5. 담당 AI가 역할 문서와 관련 shared 문서를 읽고 작업을 시작한다.
+1. 이전 TASK가 종료되었고 관련 `shared/` 문서가 Git commit으로 보존됐는지 확인한다.
+2. 보존되지 않았다면 사용자에게 local checkpoint를 제안하고, 승인 없이 commit하지 않는다.
+3. 작업 목표와 완료 기준을 확인한다.
+4. `TASK-YYYY-MM-DD-NNN` 형식으로 중복되지 않는 TASK-ID를 정한다.
+5. `shared/README.md`의 초기화 기준에 따라 shared 작업 문서를 새 TASK로 전환한다.
+6. `shared/TASK.md`에 목표, 범위, 비범위, 완료 기준을 작성한다.
+7. 이어지는 사용자 결정이 있으면 `shared/DECISIONS.md`에 기록한다.
+8. 담당 AI가 역할 문서와 관련 shared 문서를 읽고 작업을 시작한다.
 
 ## 2. 기본 순차 릴레이
 
@@ -105,3 +108,5 @@ Gemini 또는 구현에 참여하지 않은 독립 검수 AI가 `shared/REVIEW.m
 
 작업 종료 후 다음 TASK를 시작하기 전에 `AGENTS.md`의 보존 규칙에 따라 shared 문서
 상태를 정리하고, 새 TASK-ID와 `shared/TASK.md`로 다음 작업 주기를 시작한다.
+하네스 정책·역할·문서 구조가 의미 있게 바뀌었다면 개별 TASK 결과와 구분하여
+루트 `CHANGELOG.md`에도 한 항목을 추가한다.
