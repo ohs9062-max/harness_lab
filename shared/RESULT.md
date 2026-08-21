@@ -19,6 +19,6 @@
 
 ## 반영 상태
 
-- commit: 없음
+- local checkpoint commit: `e0adaf8`
 - merge: 수행하지 않음
 - push: 수행하지 않음
