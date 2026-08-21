@@ -21,3 +21,11 @@
 - `shared/README.md`를 추가하여 shared 문서별 책임, 작업 주기, 초기화 기준과 상태 구분을 명시했다.
 - 루트 `README.md`와 `WORKFLOW.md`에서 새 문서와 새 TASK 시작 절차를 연결했다.
 - 관련 작업: `TASK-2026-08-21-001`.
+
+## 2026-08-21 — RELAY·PIPELINE·PARALLEL 운영 모드 정립
+
+- 현재 역할을 다음 AI가 이어받는 `RELAY`, 기본 전문 역할을 순차 수행하는 `PIPELINE`, 독립 대안을
+  비교하는 `PARALLEL`을 공식 MODE로 구분했다.
+- 일반 개발은 `PIPELINE`을 기본값으로 하고 모든 AI가 `shared/TASK.md`의 MODE를 먼저 확인하도록 했다.
+- RELAY context 인계 필드, PARALLEL worktree/checkpoint와 사용자 승인 후 통합 규칙을 역할·운영 문서에 맞췄다.
+- 관련 작업: `TASK-2026-08-21-002`.

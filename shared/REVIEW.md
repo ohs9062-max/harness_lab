@@ -3,17 +3,24 @@
 ## 작성 정보
 
 - 작성자: Codex
-- 모델: 확인 불가
+- 모델: 미확인
 - 역할: 검수 상태 초기화
 - 작성일: 2026-08-21
-- TASK-ID: TASK-2026-08-21-001
+- TASK-ID: TASK-2026-08-21-002
 
 ## 검수 상태
 
+- MODE: PIPELINE
 - 상태: 미수행
-- 구현에 참여하지 않은 별도 AI의 독립 검수가 아직 수행되지 않았다.
-- Codex의 자체 문서 점검 결과는 `IMPLEMENTATION.md`에 기록하며 독립 검수로 간주하지 않는다.
+- 현재 구현에 참여하지 않은 AI의 독립 검수는 아직 수행되지 않았다.
+- Codex의 자체 문서 점검은 `IMPLEMENTATION.md`에 기록하며 독립 검수로 간주하지 않는다.
 
 ## 검수 대상
 
-- 독립 검수 시 branch, 기준 commit, 대상 commit, merge-base와 실제 diff 명령을 기록한다.
+- checkpoint commit이 생성되면 branch, 기준 commit, 대상 commit, merge-base와 실제 diff 명령을 기록한다.
+
+## 문서 사용 기준
+
+- PIPELINE에서는 구현에 참여하지 않은 Gemini 또는 다른 AI의 독립 검수 결과를 기록한다.
+- PARALLEL에서는 TASK가 지정하고 내용이 간결한 경우 여러 결과의 비교 근거를 함께 기록할 수 있다.
+- 비교 내용이 독립 검수와 섞여 복잡해지면 새 문서를 자동 생성하지 않고 별도 비교 문서 필요 여부를 사용자에게 보고한다.

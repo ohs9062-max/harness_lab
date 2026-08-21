@@ -1,7 +1,15 @@
 # Harness Lab
 
-여러 AI 에이전트가 역할을 분담하여 설계, 구현, 독립 검수를 수행하고,
-결과를 파일 기반으로 인계하는 하네스 엔지니어링 실험 환경이다.
+여러 AI 에이전트가 같은 작업을 이어받거나, 전문 역할에 따라 순차 수행하거나,
+독립 worktree에서 병렬 수행하고 상태와 결과를 파일 기반으로 인계·비교·통합하는 환경이다.
+
+Harness Lab의 공식 운영 모드는 세 개다.
+
+- `RELAY`: 다른 AI가 현재 역할과 미완료 작업을 이어받는다.
+- `PIPELINE`: Claude 설계, Codex 구현, Gemini 검수를 기본 순서로 수행한다.
+- `PARALLEL`: 각 AI가 독립 결과를 만든 뒤 비교하여 사용자 승인 결과를 통합한다.
+
+일반적인 새 개발 작업의 기본 MODE는 `PIPELINE`이며 사용자 지정 MODE가 항상 우선한다.
 
 ## 구조
 
@@ -29,7 +37,7 @@
 최종 판단까지의 운영 순서를 확인한다. AI는 `AGENTS.md`와 자신의 역할 문서를
 정본으로 삼고 현재 `shared/TASK.md`와 `shared/context.md`를 확인한다.
 
-기본 순서는 `WORKFLOW 확인 → TASK 작성 → 역할별 작업 → REVIEW → RESULT`이다.
+기본 순서는 `WORKFLOW 확인 → TASK와 MODE 작성 → 작업 수행 → REVIEW → RESULT`이다.
 `shared/` 문서는 현재 작업 주기의 기록이며 다음 작업을 시작할 때 새 TASK에 맞춰 갱신한다.
 새 TASK 전 보존·초기화 절차는 `shared/README.md`, 하네스 자체의 누적 변화는
 `CHANGELOG.md`에서 확인한다.
