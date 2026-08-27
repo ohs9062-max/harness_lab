@@ -18,8 +18,10 @@
 - 기준 branch: master
 - 기준 branch 확인 commit: 7ab8b3a
 - 작업 시작 commit: f88a555
-- 구현 commit: 없음
-- merge/push: 수행하지 않음
+- 구현 commit: b373621
+- merge commit: 440f6eb
+- 작업 branch push: 수행
+- master push: 대기
 
 ## 구현 결과
 
@@ -42,6 +44,7 @@
 - git diff --check: 통과
 - ENGINEERING_POLICY.md, .gitignore, .obsidian/, 무제.base, demo/: diff 없음
 - 금지된 신규 문서·scripts 디렉토리: 없음
-- commit, push, merge, branch/worktree 생성·삭제: 수행하지 않음
+- 사용자 승인에 따라 checkpoint commit, 작업 branch push와 master merge 수행
+- force push, branch/worktree 생성·삭제: 수행하지 않음
 
 자체 검증은 독립 REVIEW가 아니다.
