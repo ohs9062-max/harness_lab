@@ -19,7 +19,7 @@
 - 기준 branch 확인 commit: d10ea4c
 - 작업 시작 commit: b373621
 - 구현 commit: 590b63f
-- merge commit: 생성 중
+- merge commit: adce7b8
 - 작업 branch push: 수행
 - master push: 대기
 

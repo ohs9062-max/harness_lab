@@ -40,5 +40,5 @@ merge와 push 승인은 REVIEW waiver나 FINAL 채택으로 간주하지 않는�
 
 - local checkpoint commit: 590b63f
 - 작업 branch push: origin/ohs9062-max/sol-low-to-middle에 수행
-- merge: 진행 중
+- merge: adce7b8으로 master에 수행
 - master push: 대기
