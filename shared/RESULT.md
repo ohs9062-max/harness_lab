@@ -30,4 +30,10 @@
 - 여러 결과 조합 여부: 해당 없음
 - 남은 문제: 독립 검수와 사용자 최종 판단
 
+## 반영 상태
+
+- local checkpoint commit: 6261c47
+- push: origin/ohs9062-max/sol-low-to-middle에 수행
+- merge: 수행하지 않음
+
 RESULT는 TASK 종료 기록이며 최종 artifact 자체가 아니다.
