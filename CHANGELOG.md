@@ -47,3 +47,10 @@
 - Research Claim/Source 추적과 VERIFY 결과, artifact provenance 구조를 보강했다.
 - 독립 REVIEW 판정과 REVIEW/FIX 및 RESEARCH/VERIFY 재작업 Loop를 명확히 했다.
 - 관련 작업: `TASK-2026-08-27-002`.
+
+## 2026-08-27 — PARALLEL Research ID namespace 보강
+
+- AI별 Claim/Source namespace를 도입하고 기존 기록은 당시 형식으로 유지했다.
+- COMPARE의 Normalized Claim(N-Cxxx)으로 의미가 같은 원본 Claim만 매핑하도록 했다.
+- 동일 원출처를 여러 독립 근거로 중복 계산하지 않도록 Source 관계 규칙을 명확히 했다.
+- 관련 작업: `TASK-2026-08-27-003`.

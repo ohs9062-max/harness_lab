@@ -4,13 +4,13 @@
 
 - 작성자: Codex
 - 모델: 미확인
-- 역할: 독립 검수 템플릿 초기화
+- 역할: namespace 규칙 독립 검수 템플릿 초기화
 - 작성일: 2026-08-27
-- TASK-ID: TASK-2026-08-27-002
+- TASK-ID: TASK-2026-08-27-003
 
 ## 검수 상태
 
-- TASK-ID: TASK-2026-08-27-002
+- TASK-ID: TASK-2026-08-27-003
 - Stage: REVIEW
 - 상태: PENDING
 - 판정: 미수행
@@ -39,6 +39,10 @@ REVIEW를 수행한다. 같은 세션이 RESEARCH, COMPARE, SYNTHESIZE 또는 �
 
 최종 synthesized artifact가 RESEARCH/COMPARE/VERIFY 근거와 일치하고, 제외·미확인·기준일 정보가
 숨겨지지 않았는지 확인한다.
+
+PARALLEL Research는 artifact 주장 → Normalized Claim(N-Cxxx) → namespace 원본 Claim/Source까지
+역추적할 수 있는지 확인한다. 원본 ID를 삭제·덮어쓰지 않았는지와 동일 원출처를 독립 근거 수로
+중복 계산하지 않았는지도 확인한다.
 
 ## 개발 TASK 검수 기준
 

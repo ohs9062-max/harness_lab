@@ -23,7 +23,7 @@ Codex라는 이름보다 우선한다.
 
 ## Stage별 행동
 
-- `RESEARCH`: 독립 기술 조사를 수행하고 주장·근거·출처를 `shared/RESEARCH.md`에 기록할 수 있다.
+- `RESEARCH`: 독립 기술 조사를 수행하고 주장·근거·출처를 `shared/RESEARCH.md`에 기록할 수 있다. PARALLEL에서는 자기 Agent namespace ID를 사용하고 번호를 사전 조율하지 않는다.
 - `IMPLEMENT`: DESIGN, 결정, 입력 artifact와 실제 코드를 대조해 필요한 범위만 수정한다.
 - `TEST`: 실행 명령, 예상 결과, 실제 결과와 종료 코드를 구분해 기록한다.
 - `FIX`: REVIEW finding을 실제 코드와 재현 결과로 확인한 뒤 범위 안에서 수정하고 재검증한다.

@@ -74,6 +74,15 @@ PARALLEL 조사:
 DEFINE → RESEARCH × N → COMPARE → VERIFY → SYNTHESIZE → REVIEW → FINAL
 ~~~
 
+각 AI는 독립 RESEARCH 중 자기 namespace로 원본 ID를 만든다. canonical prefix는 `CLAUDE`,
+`CODEX`, `GEMINI`이며 다른 작업자·세션은 식별 가능한 짧은 prefix를 사용한다. 모델명은 ID에
+넣지 않는다. 예: `CLAUDE-C003`, `CODEX-S005`. 다른 AI의 번호를 먼저 확인하거나 번호를 맞추지 않는다.
+
+COMPARE에서만 같은 의미의 원본 Claim을 `N-C001` 같은 Normalized Claim으로 묶는다. 이는 원본 ID를
+대체하지 않으며 유사해 보여도 인과관계나 주장 의미가 다르면 별도 N-C로 유지한다. 동일 URL·원출처를
+여러 AI가 발견했으면 독립 근거 수를 늘리지 않고, 필요할 때 COMPARE 안에서 `source-origin: same`,
+`source-group: SG-001`로 관계만 표시한다.
+
 COMPARE는 독립 후보가 여러 개일 때만 필요하다. 연구 결과의 REVIEW는 최종 synthesized artifact를
 작성·수정하지 않은 AI 또는 fresh independent session이 수행한다.
 
@@ -118,17 +127,18 @@ REVIEW했다고 기록할 수 없다.
 
 - 주요 주장에 Claim ID와 근거가 연결됐다.
 - 출처가 Source ID로 기록됐다.
+- 새 TASK의 PARALLEL 조사라면 작성 AI namespace를 사용했고 다른 AI와 번호를 조율하지 않았다.
 - 확인 불가 사항과 추가 검증 필요 항목이 구분됐다.
 
 ### COMPARE 완료
 
-- 모든 비교 대상 branch/commit과 Claim ID가 식별됐다.
+- 모든 비교 대상 branch/commit과 namespace 원본 Claim ID가 식별됐다.
 - 공통·충돌 주장과 한 AI만 발견한 정보를 확인했다.
-- Verified 후보와 추가 VERIFY 대상을 식별했다.
+- 같은 의미의 주장만 Normalized Claim(N-Cxxx)으로 묶고 Verified 후보와 추가 VERIFY 대상을 식별했다.
 
 ### VERIFY 완료
 
-- 중요 주장을 재검증했다.
+- PARALLEL 조사에서는 Normalized Claim과 연결된 원본 Claim/Source를 따라 중요 주장을 재검증했다.
 - 검증 실패 주장과 unresolved 항목을 분리했다.
 - 최종 결과에 사용할 수 있는 주장을 식별했다.
 
@@ -168,7 +178,8 @@ PARALLEL은 TASK Stage Plan에 지정된 Stage만 공통 기준의 별도 branch
 
 PARALLEL 시작 전 기준 branch·commit, 작업선, 결과 위치, 비교 담당과 통합 기준 branch를 TASK에
 기록한다. 독립 작업 완료 전 다른 결과를 먼저 읽거나 복사하지 않는다. 결과는 checkpoint로 식별하고
-COMPARE에서 정보 채택 가능성을 선별한다. 사용자 승인 전 merge·cherry-pick·수동 통합하지 않는다.
+COMPARE에서 Normalized Claim과 Verified Set 기준으로 정보 채택 가능성을 선별한다. 사용자 승인 전
+merge·cherry-pick·수동 통합하지 않는다.
 
 ## 7. REVIEW 독립성과 판정
 

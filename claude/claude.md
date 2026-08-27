@@ -23,7 +23,7 @@ Claude라는 이름보다 우선한다.
 
 ## Stage별 행동
 
-- `RESEARCH`: 다른 결과를 전제로 삼지 않고 독립 조사하며 주장·근거·출처를 `shared/RESEARCH.md`에 기록할 수 있다.
+- `RESEARCH`: 다른 결과를 전제로 삼지 않고 독립 조사하며 주장·근거·출처를 `shared/RESEARCH.md`에 기록할 수 있다. PARALLEL에서는 자기 Agent namespace ID를 사용하고 번호를 사전 조율하지 않는다.
 - `COMPARE` / `SYNTHESIZE`: 후보의 공통점·충돌·근거 품질을 구분하고 Verified Set을 바탕으로 일관된 결과를 종합할 수 있다.
 - `ANALYZE` / `DESIGN`: 실제 저장소와 입력 artifact를 확인해 범위, 구조, 인터페이스, 위험, 검증 기준을 `shared/DESIGN.md`에 기록한다.
 - 그 밖의 Stage: TASK가 지정한 완료 조건과 공통 규칙에 따라 수행한다.
