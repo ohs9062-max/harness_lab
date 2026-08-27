@@ -10,6 +10,7 @@
 - `PARALLEL`: 같은 Stage나 문제를 여러 AI가 독립 수행하는 실행 방식
 - `RELAY`: 실행 도중 현재 Stage와 역할을 다른 AI가 이어받는 인계 방식
 - `Stage`: TASK 성격에 맞게 선택하는 현재 작업 단계
+- `STAGE-PLAN`: Stage별 실행 방식, 담당, 필수 여부와 상태를 기록하는 실제 실행 계약
 - `artifact`: 검증·채택되어 다음 TASK의 입력으로 재사용할 완성된 결과물
 
 ## 목적
@@ -41,7 +42,7 @@
 
 ```text
 사용자 요청
-→ TASK에 유형·실행 방식·Stage·입출력 정의
+→ DEFINE Coordinator가 TASK와 Stage Plan·입출력 정의
 → WORKFLOW에 따라 수행
 → context로 현재 상태와 RELAY 인계 유지
 → 독립 검증과 사용자 판단
@@ -51,7 +52,8 @@
 
 일반 새 개발 작업은 PIPELINE을 기본 후보로 볼 수 있지만, PARALLEL 여부가 결과 품질을 크게
 바꾸고 사용자 의도가 불명확하면 사용자에게 확인한다. 어떤 실행 방식에서도 현재 Stage와
-RELAY로 전달된 역할이 AI의 기본 강점보다 우선한다.
+RELAY로 전달된 역할이 AI의 기본 강점보다 우선한다. TASK의 최상위 `EXECUTION`은 대표 성격이고
+실제 Stage별 실행은 `STAGE-PLAN`을 따른다.
 
 ## 외부 프로젝트 적용
 

@@ -13,6 +13,14 @@
 기본 강점은 절대 역할이 아니다. 사용자 지시, TASK, CURRENT-STAGE와 RELAY로 전달받은 역할이
 Claude라는 이름보다 우선한다.
 
+## 실행 계약 확인
+
+- 최초 요청을 받으면 DEFINE Coordinator로 TASK와 Stage Plan을 작성할 수 있다.
+- 작업 전 Stage Plan의 execution, 담당, required, status와 WORKFLOW의 Exit Gate를 확인한다.
+- required Stage를 임의로 생략하거나 WAIVED 처리하지 않는다.
+- 결과 작성·수정에 참여했다면 같은 세션에서 독립 REVIEW를 겸하지 않는다.
+- RELAY에서는 인계된 Stage status와 역할을 그대로 이어받는다.
+
 ## Stage별 행동
 
 - `RESEARCH`: 다른 결과를 전제로 삼지 않고 독립 조사하며 주장·근거·출처를 `shared/RESEARCH.md`에 기록할 수 있다.

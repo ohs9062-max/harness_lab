@@ -4,51 +4,93 @@
 
 - 작성자: Codex
 - 모델: 미확인
-- 역할: V2 문서 구조 구현
+- 역할: V2 Stage 실행 계약 보강
 - 작성일: 2026-08-27
-- TASK-ID: TASK-2026-08-27-001
+- TASK-ID: TASK-2026-08-27-002
 
 ## 작업 메타데이터
 
-- TASK-ID: TASK-2026-08-27-001
-- USER-REQUEST: 현재 harness_lab 저장소를 문서 기반 하네스 V2 구조로 정리해줘.
+- TASK-ID: TASK-2026-08-27-002
+- USER-REQUEST: 현재 harness_lab 저장소의 V2 문서 구조를 실제 운영에 더 적합하게 보완해줘.
 - TASK-TYPE: DEVELOPMENT
 - EXECUTION: PIPELINE
 - RELAY: ALLOWED
 - CURRENT-STAGE: REVIEW
 - INPUT-ARTIFACT: 없음
-- OUTPUT-ARTIFACT: 없음 — 이번 결과는 저장소의 운영 문서 구조 자체임
+- OUTPUT-ARTIFACT: 없음 — 저장소의 기존 운영 문서가 직접 결과임
+
+EXECUTION은 TASK의 대표 실행 성격이다. 실제 Stage별 실행 방식과 담당은 아래 Stage Plan을 따른다.
+
+## Stage Plan
+
+### DEFINE
+- execution: PIPELINE
+- agent: Codex
+- required: true
+- status: DONE
+
+### ANALYZE
+- execution: PIPELINE
+- agent: Codex
+- required: true
+- status: DONE
+
+### DESIGN
+- execution: PIPELINE
+- agent: Codex
+- required: true
+- status: DONE
+
+### IMPLEMENT
+- execution: PIPELINE
+- agent: Codex
+- required: true
+- status: DONE
+
+### TEST
+- execution: PIPELINE
+- agent: Codex
+- required: true
+- status: DONE
+
+### REVIEW
+- execution: PIPELINE
+- agent: independent session
+- required: true
+- status: PENDING
+
+### FINAL
+- execution: PIPELINE
+- agent: User
+- required: true
+- status: PENDING
 
 ## 목표
 
-- 한 줄 요청을 조사·설계·구현·검수 Stage로 연결할 수 있는 문서 계약을 만든다.
-- PIPELINE/PARALLEL 실행 방식과 RELAY 인계 방식을 분리한다.
-- AI가 중단되어도 context만으로 같은 Stage와 역할을 이어받을 수 있게 한다.
-- 최종 결과를 artifact로 보존하고 후속 TASK가 입력으로 재사용할 수 있게 한다.
+- 한 줄 요청을 DEFINE Coordinator가 최소 TASK 계약과 Stage Plan으로 변환할 수 있게 한다.
+- Stage별 execution·담당·required·status와 Exit Gate, waiver, 재작업 Loop를 명확히 한다.
+- 연구 주장·출처·검증 결과와 artifact provenance를 추적할 수 있게 한다.
+- 독립 REVIEW 조건과 표준 판정을 명확히 한다.
 
 ## 범위
 
-- 루트 운영 문서, AI별 역할 문서와 shared 문서 구조 개선
-- shared/RESEARCH.md, shared/COMPARE.md, artifacts/ 추가
-- 현재 작업 기록을 V2 메타데이터로 전환
+- 기존 루트 운영 문서, 역할 문서와 shared 템플릿의 V2 정책 보강
+- .obsidian 추적 상태와 무제.base 사용 여부 조사·보고
 
 ## 제약
 
-- 문서 구조 개선만 수행하고 orchestrator, 자동 실행 스크립트, DB나 자동 branch manager를 만들지 않는다.
-- 기존 Git 안전·사용자 승인·독립 검수 정책을 유지한다.
-- push, master merge, force push, branch 삭제, reset --hard를 수행하지 않는다.
-- 같은 규칙을 여러 문서에 장황하게 중복하지 않는다.
-
-## 필요한 Stage
-
-ANALYZE → DESIGN → IMPLEMENT → TEST → REVIEW → FINAL
+- 지정된 기존 문서 안에서 해결하고 금지된 새 문서·프로그램·스크립트를 만들지 않는다.
+- ENGINEERING_POLICY.md, .obsidian 파일과 무제.base를 변경·삭제하지 않는다.
+- force push, reset --hard, branch 삭제와 사용자 승인 없는 commit·push·merge를 수행하지 않는다.
+- 기존 Git 안전·보안·사용자 의사결정·merge-base/triple-dot 정책을 유지한다.
 
 ## 완료 조건
 
-- AGENTS만으로 PIPELINE/PARALLEL/RELAY 차이와 Stage 우선 원칙을 이해할 수 있다.
-- TASK와 context가 요구된 V2 필드를 갖춘다.
-- PARALLEL RESEARCH를 독립 기록하고 COMPARE에서 선별할 수 있다.
-- COMPARE와 REVIEW, shared와 artifacts의 책임이 분리된다.
-- artifact를 후속 TASK의 INPUT-ARTIFACT로 지정할 수 있다.
-- Git 안전, merge-base/triple-dot, 작성 정보와 ENGINEERING_POLICY 정본 역할이 유지된다.
-- 불필요한 파일·자동화·코드가 추가되지 않고 Markdown 검증을 통과한다.
+- 최상위 EXECUTION과 Stage별 execution의 의미가 구분된다.
+- 단일/병렬 Research 흐름, 조건부 COMPARE와 독립 REVIEW가 구분된다.
+- 모든 Stage의 Exit Gate와 FINAL gate, WAIVED 승인 근거가 정의된다.
+- Claim/Source ID, VERIFY 결과, Verified Set을 추적할 수 있다.
+- REVIEW와 research/development 재작업 Loop가 명확하다.
+- artifact 기준일·상태·근거·검수 provenance를 확인할 수 있다.
+- context만으로 현재 Stage status와 다음 작업을 이어받을 수 있다.
+- 21개 검증 항목을 실제 문서와 Git 상태로 확인한다.

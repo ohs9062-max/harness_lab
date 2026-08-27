@@ -39,3 +39,11 @@
 - `artifacts/`를 추가해 shared 과정 문서와 후속 TASK에서 재사용할 최종 결과물을 구분했다.
 - TASK 계약과 context 인계 필드를 V2 메타데이터로 보강했다.
 - 관련 작업: `TASK-2026-08-27-001`.
+
+## 2026-08-27 — V2 Stage 실행 계약 보강
+
+- Stage별 execution·담당·필수 여부·상태를 기록하는 Stage Plan과 DEFINE Coordinator를 도입했다.
+- Stage Exit Gate, 사용자 승인 WAIVED 규칙과 FINAL 진입 조건을 명확히 했다.
+- Research Claim/Source 추적과 VERIFY 결과, artifact provenance 구조를 보강했다.
+- 독립 REVIEW 판정과 REVIEW/FIX 및 RESEARCH/VERIFY 재작업 Loop를 명확히 했다.
+- 관련 작업: `TASK-2026-08-27-002`.

@@ -4,56 +4,67 @@
 
 - 작성자: Codex
 - 모델: 미확인
-- 역할: V2 문서 구현 및 인계 준비
+- 역할: V2 Stage 실행 계약 구현
 - 작성일: 2026-08-27
-- TASK-ID: TASK-2026-08-27-001
+- TASK-ID: TASK-2026-08-27-002
 
 ## 작업 식별
 
-- TASK-ID: TASK-2026-08-27-001
+- TASK-ID: TASK-2026-08-27-002
 - TASK-TYPE: DEVELOPMENT
 - EXECUTION: PIPELINE
 - CURRENT-STAGE: REVIEW
-- STATUS: 독립 검수 대기
+- STATUS: PENDING
+
+## Stage 진행 상태
+
+- DEFINE: DONE
+- ANALYZE: DONE
+- DESIGN: DONE
+- IMPLEMENT: DONE
+- TEST: DONE
+- REVIEW: PENDING
+- FINAL: PENDING
+
+Stage별 execution·담당·required와 waiver 근거는 shared/TASK.md의 Stage Plan을 정본으로 확인한다.
 
 ## 현재 담당
 
-- 현재 작업자: 없음 — 독립 검수 담당 미배정
+- 현재 작업자: 없음 — independent reviewer 미배정
 - 현재 모델: 해당 없음
 - 현재 수행 역할: 독립 REVIEW 대기
 
 ## 진행 상태
 
-- 완료한 Stage: ANALYZE, DESIGN, IMPLEMENT, TEST
-- 완료한 작업: 기존 문서·Git 상태 확인, V2 문서 수정, 필수 필드·용어·Markdown·Git 정책 검증
-- 현재 작업 중: 없음 — 자체 검증 완료
-- 남은 작업: 구현에 참여하지 않은 AI 또는 별도 세션의 독립 REVIEW, 사용자 FINAL 판단
+- 완료한 작업: 지정 문서·Git 조사, 기존 Coordinator 초안 통합, V2 실행 계약 보강, 21개 자체 검증
+- 현재 작업 중: 없음 — IMPLEMENT와 TEST Exit Gate 충족
+- 남은 작업: fresh independent session의 REVIEW, 판정에 따른 FIX Loop 또는 사용자 FINAL 판단
 
 ## 판단과 제약
 
-- 중요한 판단: EXECUTION은 PIPELINE/PARALLEL만 사용하고 RELAY는 별도 인계 방식으로 정의함
-- 주의사항/제약: 문서만 수정하며 승인 없는 commit·merge·push와 금지된 Git 작업을 수행하지 않음
+- 중요한 판단: 최상위 EXECUTION은 대표 성격, Stage Plan은 실제 실행 계약으로 구분
+- 주의사항/제약: 새 운영 문서·스크립트 생성 금지, ENGINEERING_POLICY·.obsidian·무제.base 변경 금지
 
 ## Git 상태
 
 - 작업 branch: ohs9062-max/sol-low-to-middle
 - 기준 branch: master
-- 기준 branch 확인 commit: ed672fa
-- 작업 시작 commit: ab16a11
-- checkpoint commit: 6261c47
-- 변경 파일: 루트 문서 4개, 역할 문서 3개, shared 문서 10개, artifacts/README.md
-- 테스트 상태: V2 필드·용어·금지 파일·Git 정책 검사와 git diff --check 통과
-- push 상태: 사용자 지시에 따라 origin/ohs9062-max/sol-low-to-middle에 push 완료
+- 기준 branch 확인 commit: 7ab8b3a
+- 작업 시작 commit: f88a555
+- checkpoint commit: 없음
+- 기존 미커밋 변경: AGENTS.md의 DEFINE Coordinator 초안 — 의미를 보존해 정식 규칙에 통합
+- 변경 파일: 기존 Markdown 문서 18개 수정, 신규 파일 없음
+- 테스트 상태: 21개 요구 검사, git diff --check와 보호 파일 무변경 검사 통과
 
 ## 산출물
 
-- 생성된 산출물: V2 운영 문서와 shared 템플릿
-- 최종 artifact: 해당 없음 — 이번 TASK는 저장소 문서 자체가 결과임
+- 생성된 산출물: 기존 V2 운영 문서의 Stage 실행 계약 보강
+- 최종 artifact: 해당 없음 — 저장소 문서 자체가 결과
 
 ## 다음 인계
 
 - 다음 Stage: REVIEW
-- 다음 담당: 구현에 참여하지 않은 AI 또는 별도 세션
+- 다음 담당: fresh independent session
 - 이어받을 역할: 독립 REVIEW
-- 다음에 먼저 확인할 것: TASK 완료 조건, AGENTS의 실행/인계 분리, 실제 diff, Git 제한 준수
+- 다음에 먼저 확인할 것: TASK Stage Plan, WORKFLOW Exit Gate/Loop, 실제 diff와 금지 사항
 - RELAY 사유: 해당 없음
