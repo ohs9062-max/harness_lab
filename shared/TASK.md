@@ -15,7 +15,7 @@
 - TASK-TYPE: DEVELOPMENT
 - EXECUTION: PIPELINE
 - RELAY: ALLOWED
-- CURRENT-STAGE: REVIEW
+- CURRENT-STAGE: FINAL
 - INPUT-ARTIFACT: 없음
 - OUTPUT-ARTIFACT: 없음 — 이번 결과는 저장소의 운영 문서 구조 자체임
 
@@ -36,7 +36,7 @@
 
 - 문서 구조 개선만 수행하고 orchestrator, 자동 실행 스크립트, DB나 자동 branch manager를 만들지 않는다.
 - 기존 Git 안전·사용자 승인·독립 검수 정책을 유지한다.
-- push, master merge, force push, branch 삭제, reset --hard를 수행하지 않는다.
+- force push, branch 삭제, reset --hard를 수행하지 않는다. push와 master merge는 사용자 후속 명시 승인 후 수행했다.
 - 같은 규칙을 여러 문서에 장황하게 중복하지 않는다.
 
 ## 필요한 Stage
