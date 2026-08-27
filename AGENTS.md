@@ -26,6 +26,7 @@
 - `codex/`: Codex 역할 및 세션 설정
 - `gemini/`: Gemini 역할 및 세션 설정
 - `shared/`: 여러 에이전트가 공유하는 작업 상태, 결정 사항, 검증 결과
+- `artifacts/`: 다음 TASK에서 입력으로 재사용할 수 있는 채택된 최종 결과물
 - `demo/`: 실제 데모 코드 작성 및 수정 영역
 
 명시적인 작업 지시가 없다면 다른 에이전트의 설정 파일을 수정하지 않는다.
@@ -35,20 +36,20 @@
 작업을 시작하기 전에 다음 순서로 확인한다.
 
 1. 루트 `AGENTS.md`
-2. 루트 `ENGINEERING_POLICY.md`
+2. 코드 작업이면 루트 `ENGINEERING_POLICY.md`
 3. 현재 에이전트의 역할 문서
-4. `shared/TASK.md`의 현재 목표와 `MODE`
+4. `shared/TASK.md`의 현재 목표, 실행 방식과 Stage
 5. `shared/context.md`의 현재 역할과 이전 작업 상태
-6. `shared/DECISIONS.md`, `shared/DESIGN.md`, `shared/IMPLEMENTATION.md`,
-   `shared/REVIEW.md`, `shared/RESULT.md` 중 현재 단계에 필요한 작업 문서
+6. 현재 Stage에 필요한 shared 문서
 7. 작업 대상의 실제 파일
 8. 현재 Git 상태와 필요한 branch/worktree 구조
 
 이전 에이전트의 설명만 믿지 말고 필요한 경우 실제 파일을 직접 확인한다.
 
-`MODE`의 허용 값은 `RELAY`, `PIPELINE`, `PARALLEL`이다. MODE가 누락된 일반적인 새 개발
-작업은 `PIPELINE`을 기본 후보로 보되, 기존 작업 인계인지 병렬 비교인지 불명확하면 임의로
-확정하지 않고 사용자에게 확인한다.
+실행 방식(`EXECUTION`)의 허용 값은 `PIPELINE`, `PARALLEL`이다. 일반적인 새 개발 작업은
+`PIPELINE`을 기본 후보로 볼 수 있다. 다만 병렬 수행 여부가 결과 품질에 크게 영향을 주고
+사용자 의도가 불명확하면 임의로 확정하지 않고 사용자에게 확인한다. `RELAY`는 실행 방식이
+아니라 어느 실행 방식에서도 발생할 수 있는 인계 방식이다.
 
 ## 4. 작업 계획
 
@@ -159,10 +160,13 @@ API Key, Token, Password, Secret, 인증서, 실제 `.env` 값 등
 - `shared/TASK.md`: 현재 작업 목표
 - `shared/DECISIONS.md`: 사용자가 확정해야 하는 중요한 방향과 결정 결과
 - `shared/context.md`: 현재 진행 상태와 세션 인계
+- `shared/RESEARCH.md`: 한 AI가 독립적으로 조사한 주장과 출처
+- `shared/COMPARE.md`: 여러 후보 결과의 비교, 선별과 Verified Set
 - `shared/DESIGN.md`: 설계 및 구현 방향
 - `shared/IMPLEMENTATION.md`: 실제 구현 결과
 - `shared/REVIEW.md`: 독립 검증 결과
 - `shared/RESULT.md`: 작업 주기의 최종 상태 요약
+- `artifacts/`: 검증·채택되어 후속 TASK에서 재사용할 최종 결과물
 
 모든 파일을 항상 만들 필요는 없다.  
 현재 작업에 필요한 파일만 사용한다.
@@ -212,6 +216,8 @@ AI별 작업 항목을 누적할 수 있다. 이 경우에도 문서 상단 작�
 문서별 기본 작성 책임은 다음과 같다.
 
 - `shared/DECISIONS.md`: 중요한 사용자 판단을 요청하거나 확정 결과를 기록하는 AI
+- `shared/RESEARCH.md`: 해당 독립 조사를 수행한 AI
+- `shared/COMPARE.md`: 비교 Stage를 담당한 AI
 - `shared/DESIGN.md`: Claude
 - `shared/IMPLEMENTATION.md`: Codex
 - `shared/REVIEW.md`: Gemini 또는 구현에 참여하지 않은 독립 검수 AI
@@ -226,15 +232,17 @@ AI별 작업 항목을 누적할 수 있다. 이 경우에도 문서 상단 작�
 의미 있는 작업을 완료했거나 다른 에이전트에게 작업을 넘길 때는  
 `shared/context.md`를 갱신한다.
 
-특히 `MODE: RELAY`에서는 다음 내용을 간결하게 남긴다.
+RELAY가 발생할 때는 다음 내용을 간결하게 남긴다.
 
-- TASK-ID와 MODE
+- TASK-ID, TASK-TYPE과 EXECUTION
+- CURRENT-STAGE와 STATUS
 - 이전/현재 작업자, 실제 모델과 현재 역할
-- 완료한 작업, 현재 작업 중인 내용과 남은 작업
+- 완료한 Stage와 작업, 현재 작업 중인 내용과 남은 작업
 - 중요한 판단, 주의사항과 제약
 - 작업 branch, 기준 branch와 checkpoint commit
-- 변경 파일과 테스트 상태
-- 다음 담당, 이어받을 역할과 다음에 먼저 확인할 항목
+- 변경 파일, 테스트 상태와 생성된 산출물
+- 다음 Stage, 다음 담당, 이어받을 역할과 다음에 먼저 확인할 항목
+- RELAY 사유
 
 이미 끝난 대화를 장황하게 기록하지 않는다.
 
@@ -294,51 +302,96 @@ AI 간 의견이 충돌할 때(예: 검수에서 설계 자체를 문제로 지�
 
 `코드를 작성했다`는 사실만으로 작업 완료로 판단하지 않는다.  
 
-## 13. AI 기본 전문성과 공식 운영 모드
+## 13. Stage 우선 원칙과 AI 기본 강점
+
+작업 책임은 다음 우선순위로 결정한다.
+
+1. 사용자 지시
+2. 현재 TASK
+3. 현재 Stage
+4. RELAY로 전달된 역할
+5. AI 기본 강점
+
+대표 Stage는 다음과 같으며 TASK 성격에 필요한 Stage만 선택한다.
+
+```text
+DEFINE → RESEARCH → COMPARE → VERIFY → SYNTHESIZE → FINAL
+ANALYZE → DESIGN → IMPLEMENT → TEST → REVIEW → FIX → FINAL
+```
+
+Stage는 고정된 전체 절차가 아니다. 연구·전략 작업은 앞줄을, 개발 작업은 뒷줄을 기본
+후보로 사용하고 혼합 작업은 필요한 Stage를 조합한다. `CURRENT-STAGE`는 `shared/TASK.md`와
+`shared/context.md`에서 확인한다.
+
+AI별 기본 강점은 다음과 같다.
 
 - Claude
   - 요구사항 분석
-  - 설계
-  - 구조 결정
-  - 필요 시 `shared/DESIGN.md` 작성
+  - 구조·설계 판단
+  - 결과 종합
 - Codex
-  - 실제 코드 구현
-  - 수정
-  - 실행 및 테스트
-  - 필요 시 `shared/IMPLEMENTATION.md` 작성
+  - 구현·수정
+  - 실행·테스트
+  - 디버깅
 - Gemini
-  - 독립 검수
-  - 반대 관점 검토
-  - 문서와 실제 코드 대조
-  - 필요 시 `shared/REVIEW.md` 작성
+  - 독립 조사
+  - 반대 관점·반례 탐색
+  - 독립 검수·교차 검증
 
-위 역할은 각 AI의 기본 강점이자 `PIPELINE`의 기본 역할이다. `RELAY`에서는 현재 역할이 AI 이름보다
-우선하며, `PARALLEL`에서는 TASK에 지정된 독립 작업 범위를 수행한다.
+기본 강점은 담당자가 정해지지 않았을 때의 배치 기준일 뿐 절대 역할이 아니다. 현재 Stage와
+RELAY로 받은 역할이 다르면 해당 Stage와 역할을 그대로 수행한다.
 
-공식 운영 모드는 다음 세 개뿐이다.
+## 14. 실행 방식
 
-- `RELAY`: 다른 AI가 현재 역할과 미완료 작업을 그대로 이어받는다.
-- `PIPELINE`: AI별 기본 역할에 따라 순차 수행한다. 일반적인 새 개발 작업의 기본 모드다.
-- `PARALLEL`: 여러 AI가 독립적인 접근을 만든 뒤 비교한다.
+실행 방식은 두 개뿐이다.
 
-현재 MODE는 `shared/TASK.md`에 정확한 영문 값으로 기록한다. 사용자가 지정한 MODE가 항상 우선한다.
-MODE를 바꿔야 하면 이전 MODE, 변경 이유와 현재 역할을 `shared/TASK.md`와 `shared/context.md`에
-갱신한다.
+- `PIPELINE`: AI들이 필요한 Stage를 순서대로 수행한다.
+- `PARALLEL`: 같은 Stage 또는 같은 문제를 여러 AI가 독립적으로 수행한 뒤 비교한다.
 
-## 14. MODE 1 — RELAY
+현재 실행 방식은 `shared/TASK.md`의 `EXECUTION`에 정확한 영문 값으로 기록한다. 실행 방식을
+바꾸려면 이유와 영향을 TASK와 context에 갱신한다.
 
-RELAY의 목적은 한 AI가 토큰 한도, 세션 종료, 장애 또는 사용 불가 상태에 도달해도 다음 AI가
-같은 작업을 계속할 수 있게 하는 것이다. 핵심 인계 문서는 `shared/context.md`다.
+### PIPELINE
 
-기본 인계 순서:
+연구·전략 작업의 대표 흐름:
 
 ```text
-Codex → Claude → Gemini
+DEFINE → RESEARCH → COMPARE → VERIFY → SYNTHESIZE → FINAL
 ```
 
-기본 가용 순서는 위와 같고 Gemini 다음 담당은 사용자가 지정한다. 이 순서는 역할 분담이 아니다.
-다음 AI는 설계·구현·검수 중 이전 AI의 현재 역할과 범위를 그대로 이어받으며, 자신의 기본 전문성을
-이유로 작업을 초기화하지 않는다.
+개발 작업의 대표 흐름:
+
+```text
+ANALYZE → DESIGN → IMPLEMENT → TEST → REVIEW → FIX(필요 시) → FINAL
+```
+
+- Stage마다 이전 설명만 믿지 않고 입력 문서, artifact와 실제 파일을 확인한다.
+- 일부 Stage를 생략할 수 있으며 TASK에 필요한 Stage와 완료 조건을 명시한다.
+- 구현에 참여한 AI는 같은 결과의 독립 REVIEW를 겸하지 않는다.
+- 최종 승인자는 사용자다.
+
+### PARALLEL
+
+PARALLEL은 같은 Stage나 문제를 독립 작업선에서 수행해 비교 가치가 있을 때 사용한다.
+
+- 공통 TASK-ID, Stage, 질문, 완료 기준과 기준 commit을 사용한다.
+- 각 AI는 별도 branch/worktree에서 결과와 근거를 만들며 독립 작업 완료 전 다른 AI 결과를
+  먼저 읽거나 복사해 결론을 맞추지 않는다.
+- PARALLEL RESEARCH는 각 branch의 `shared/RESEARCH.md`에 기록한다.
+- 독립 작업 후 `shared/COMPARE.md`에서 공통·충돌 주장, 출처 품질, 재검증 결과와 Verified Set을 만든다.
+- 비교 결과가 사용자 중요 결정에 해당하면 `shared/DECISIONS.md`에서 확정받는다.
+- 사용자 승인 전 결과를 merge, cherry-pick 또는 수동 통합하지 않는다.
+- 통합 결과는 별도로 다시 검증한다.
+
+병렬 시작 전 기준 branch·commit, 각 작업선, 결과물 위치, 비교 담당과 기록 위치, 통합 기준
+branch를 TASK에 기록한다. 브랜치 이름은 가능하면 `task/<TASK-ID>/<담당>` 형식을 사용한다.
+
+## 15. RELAY — 인계 방식
+
+RELAY의 목적은 한 AI가 토큰 한도, 세션 종료, 장애 또는 사용 불가 상태에 도달해도 다음 AI가
+같은 작업을 계속할 수 있게 하는 인계 방식이다. `PIPELINE` 또는 `PARALLEL` 도중 언제든 발생할 수
+있으며 실행 방식이나 Stage가 아니다. 토큰 한도, 세션 종료, AI 일시 사용 불가, 사용자 역할 교체,
+환경 문제로 현재 AI가 진행 불가한 경우에 사용할 수 있다. 핵심 인계 문서는 `shared/context.md`다.
 
 ### 넘겨주는 AI
 
@@ -351,6 +404,7 @@ Codex → Claude → Gemini
 
 - 루트 규칙, 자신의 역할 문서, `shared/TASK.md`, `shared/context.md`, 관련 작업 문서와 Git 상태를 확인한다.
 - checkpoint와 실제 diff를 확인하고 이전 AI의 설명과 일치하는지 검증한다.
+- 인계된 CURRENT-STAGE와 현재 역할을 유지한다. 자기 기본 강점을 이유로 다른 Stage에서 시작하지 않는다.
 - 완료된 범위는 불필요하게 다시 작성하지 않고, 미완료 지점부터 같은 목표를 계속한다.
 - 명백한 오류를 발견하면 파일·위치·근거를 기록한 뒤 수정할 수 있다.
 - 자신이 구현에 참여했다면 같은 결과의 독립 검수자로 기록하지 않는다.
@@ -358,72 +412,18 @@ Codex → Claude → Gemini
 릴레이 중 여러 AI가 같은 문서를 갱신할 수 있다. 문서 상단 작성 정보는 마지막 실질 작성자를
 나타내고, 이전 작성자와 변경 과정은 Git 기록으로 확인한다.
 
-## 15. MODE 2 — PIPELINE
+## 16. shared와 artifact 책임
 
-PIPELINE은 일반적인 개발 작업의 기본 모드이며 AI별 강점에 따라 역할을 순차 분담한다.
+- `shared/` 문서는 현재 TASK의 과정, 근거, 비교, 검수와 상태를 기록한다.
+- `artifacts/<TASK-ID>/`는 사용자가 채택했거나 최종 결과로 확정한 재사용 가능한 결과물을 보관한다.
+- artifact 이름은 TASK 성격에 맞게 정하고 TASK-ID, 생성 근거, 검증 상태, 주요 내용, 제외한 위험과
+  후속 TASK 입력 정보를 가능하면 포함한다.
+- artifact는 메타데이터만 담은 빈 껍데기가 아니라 다음 TASK가 실제 입력으로 사용할 완성된 결과물이어야 한다.
+- 후속 TASK는 이전 결과 경로를 `INPUT-ARTIFACT`에 기록한다.
+- `shared/RESULT.md`는 artifact 자체가 아니라 TASK 종료 상태와 채택 경로를 기록한다.
 
-```text
-사용자 요청
-→ Claude: 요구사항 분석·구조/설계 → shared/DESIGN.md
-→ Codex: 구현·실행·테스트·디버깅 → shared/IMPLEMENTATION.md
-→ 사용자 승인에 따른 local checkpoint commit
-→ Gemini: 독립 검수 → shared/REVIEW.md
-→ 사용자 최종 판단 → shared/RESULT.md
-```
-
-- 각 AI는 자기 기본 역할을 수행하고 다음 담당자는 설명만이 아니라 실제 파일과 작업 문서를 확인한다.
-- 단순한 작업은 일부 역할을 생략할 수 있고 사용자가 역할 생략, 단일 AI 또는 역할 변경을 지시하면 우선한다.
-- 구현 완료 후 검수 대상을 고정할 local checkpoint commit을 사용하되 7번의 사용자 승인 정책을 따른다.
-- 구현에 참여한 AI는 같은 결과의 독립 검수를 겸하지 않는다.
-- 최종 승인자는 사용자다.
-
-## 16. MODE 3 — PARALLEL
-
-사용자의 지시에 따라 여러 AI가 독립된 workspace 또는 worktree에서
-동시에 작업할 수 있다.
-
-- 각 AI는 독립적으로 분석 또는 구현을 수행한다.
-- 서로의 결과를 무조건 정답으로 간주하지 않는다.
-- 공통 TASK-ID, 목표, 완료 기준과 기준 commit을 사용하되 branch/worktree와 변경 파일은 분리한다.
-- 독립성 확보가 필요한 동안에는 다른 AI의 구현 결과를 먼저 복사하지 않는다.
-- 비교 가치가 있는 범위만 독립 수행할 수 있으며 세 AI 모두가 항상 완전한 구현을 만들 필요는 없다.
-- 병렬 작업 결과는 이후 비교·상의·조율하고, 사용자가 최종 방향을 선택한 뒤 합산 또는 merge한다.
-- 병렬 작업 중에도 7번(Git 안전 규칙)과 8번(작업 권한)은 동일하게 적용된다.
-
-구체적 절차:
-
-1. 사용자가 병렬 작업을 지시하면 각 AI는 별도 브랜치 또는 worktree에서 작업한다.
-2. 시작 전에 공통 기준 branch·commit, 각 작업선의 담당과 결과물 위치, 비교 담당, 비교 기록 위치와
-   통합 기준 branch를 `shared/TASK.md`에 기록한다.
-3. 각 AI는 자신의 결과, 판단 근거, 변경 파일과 검증 결과를 기록하고 사용자 승인을 받은 checkpoint
-   commit으로 비교 대상을 고정한다.
-4. 독립 작업이 끝나면 비교 담당은 결과별 공통점, 차이, 장단점, 충돌 파일과 검증 결과를 직접 비교하고
-   TASK에서 정한 shared 문서에 근거를 남긴다.
-5. 단순히 모든 변경을 합치지 않고 중복·상충·회귀 위험을 조율하여 통합안을 만든다.
-6. 결과 동작이나 구조가 달라지는 충돌은 `shared/DECISIONS.md`에 기록하고 사용자 판단을 받는다.
-7. 사용자가 선택하거나 승인한 결과만 merge, cherry-pick 또는 수동 통합한다.
-8. 통합된 결과는 별도 실행·테스트로 다시 검증한다.
-
-결과 비교 전에 임의로 merge하지 않는다. 병렬 작업에 참여해 자신의 결과를 만든 AI는 비교 검토에는
-참여할 수 있지만, 그 검토를 자신의 결과에 대한 독립 검수로 기록하지 않는다. 최종 merge는 비교 완료를
-의미하지 않으며 사용자 승인이 필요하다.
-
-PARALLEL은 기본 모드가 아니다. 구조적 대안이 여러 개이거나 방향이 불확실한 경우, AI 간 의견이
-크게 갈리는 경우, 중요한 리팩터링·성능·설계 선택, 기존 접근의 반복 실패 또는 사용자의 독립 비교
-요청이 있을 때 사용한다.
-
-### 브랜치/worktree 이름 규칙
-
-병렬 작업 시 브랜치 이름은 다음 형식을 권장한다.
-
-```
-task/<TASK-ID>/<담당>
-```
-
-예: `task/TASK-2026-08-07-001/claude`, `task/TASK-2026-08-07-001/codex`
-
-사용자가 다른 이름을 지정하거나 도구가 자체적으로 이름을 생성하는 경우
-이를 강제로 깨지 않는다. 가능하면 TASK-ID와 담당 AI를 식별할 수 있도록 한다.
+`COMPARE`는 여러 후보 결과를 비교·선별하는 과정이고, `REVIEW`는 선택·종합된 결과를 작성자와
+독립된 관점에서 최종 검증하는 과정이다. 두 책임을 한 문서에 섞지 않는다.
 
 ## 17. 단독 작업
 

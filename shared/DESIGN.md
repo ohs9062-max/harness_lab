@@ -4,34 +4,32 @@
 
 - 작성자: Codex
 - 모델: 미확인
-- 역할: 하네스 작업 방식 설계 및 구현
-- 작성일: 2026-08-21
-- TASK-ID: TASK-2026-08-21-002
+- 역할: V2 문서 구조 설계 및 구현
+- 작성일: 2026-08-27
+- TASK-ID: TASK-2026-08-27-001
 
-## 설계 상태
+## 작업 메타데이터
 
-- 사용자가 세 공식 MODE의 목적, 기본값, 역할과 문서별 요구사항을 직접 확정했다.
-- 별도 Claude 선행 설계 없이 현재 Codex가 확정 요구사항을 문서 구조에 반영한다.
+- TASK-ID: TASK-2026-08-27-001
+- Stage: DESIGN
+- 입력 artifact: 없음
+- 관련 decision: D-001, D-002
+- branch/commit: ohs9062-max/sol-low-to-middle / checkpoint 없음
 
-## 설계 원칙
+## 설계 결과
 
-- AI별 설계·구현·검수 전문성은 PIPELINE 기본 역할로 유지하되 MODE와 분리한다.
-- 릴레이는 역할 단계 전환이 아니라 같은 목표와 미완료 범위를 다음 AI가 이어받는 절차로 정의한다.
-- 파이프라인은 일반 개발의 기본 MODE이며 역할 생략·변경에 대한 사용자 지시를 우선한다.
-- 병렬은 공통 기준에서 독립 결과를 만들고, 비교·조율·사용자 승인 후 통합하는 절차로 정의한다.
-- 병렬의 “합산”은 모든 변경의 기계적 결합이 아니라 중복·충돌을 제거한 승인 결과 통합으로 정의한다.
-- MODE는 TASK에 하나의 공식 값으로 명시하고 변경 시 TASK와 context를 함께 갱신한다.
+- AGENTS를 실행 방식, Stage 우선순위, RELAY와 Git 안전 규칙의 정본으로 유지한다.
+- WORKFLOW는 사용자가 TASK 시작부터 FINAL까지 운영하는 절차만 설명한다.
+- 역할 문서는 공통 규칙을 복제하지 않고 기본 강점과 Stage별 행동만 설명한다.
+- TASK는 작업 계약, context는 현재 상태와 RELAY 인계 스냅샷으로 분리한다.
+- RESEARCH는 단일 조사 근거, COMPARE는 후보 선별, REVIEW는 선택 결과의 독립 검증을 담당한다.
+- shared는 과정, artifacts는 재사용 가능한 최종 결과, RESULT는 종료 기록으로 분리한다.
+- ENGINEERING_POLICY에는 orchestration 내용을 넣지 않는다.
 
 ## 변경 대상
 
-- 정본: `AGENTS.md`
-- 역할별 구체화: `codex/codex.md`, `claude/claude.md`, `gemini/gemini.md`
-- 운영 안내 정합성: `WORKFLOW.md`, `shared/README.md`
-- 작업 기록: `shared/*.md`
+루트 운영 문서, 세 역할 문서, 현재 shared 문서와 신규 RESEARCH/COMPARE, artifacts/README.md.
 
 ## 검증 기준
 
-- 기본 PIPELINE 역할과 RELAY의 현재 역할 우선 규칙이 충돌 없이 공존하는지 검색한다.
-- 모든 역할 문서에 세 MODE의 책임이 각각 존재하는지 확인한다.
-- merge 권한, 독립 검수와 참여자 검토의 구분이 유지되는지 확인한다.
-- Markdown 공백 오류, heading 구조, TASK-ID와 변경 범위를 확인한다.
+TASK의 문서 검증 조건, git diff --check, 용어 검색, 실제 파일·Git 상태와 최종 tree를 확인한다.

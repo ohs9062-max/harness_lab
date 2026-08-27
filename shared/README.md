@@ -1,74 +1,52 @@
 # shared 문서 운영 안내
 
-`shared/`는 여러 AI와 사용자가 한 TASK의 목표, 결정, 설계, 구현, 검수, 인계와
-최종 판단을 파일로 공유하는 공간이다. 이 디렉토리의 작업 문서는 **현재 TASK 한
-주기**를 나타내며, 영구 누적 이력은 Git 기록과 루트 `CHANGELOG.md`에서 확인한다.
+shared/는 현재 TASK의 계약, 작업 과정, 근거, 비교, 검수와 인계 상태를 공유한다. 재사용 가능한
+최종 결과물은 artifacts/, 누적 이력은 Git과 CHANGELOG에서 확인한다.
 
-## 문서별 역할
+## 문서별 책임
 
-| 문서 | 역할 | 기본 작성 책임 |
-|---|---|---|
-| `TASK.md` | TASK-ID, MODE, 목표, 범위, 완료 기준과 현재 상태 | 작업을 시작하는 AI |
-| `DECISIONS.md` | 결과 방향을 바꾸는 사용자 결정과 영향 | 결정을 요청·확인한 AI |
-| `DESIGN.md` | 요구사항 분석, 설계, 변경 대상과 검증 기준 | Claude 또는 실제 설계 AI |
-| `IMPLEMENTATION.md` | 실제 변경, Git 기준, 실행·테스트 결과 | Codex 또는 실제 구현 AI |
-| `REVIEW.md` | 구현과 설명을 독립적으로 대조한 검수 결과 | Gemini 또는 독립 검수 AI |
-| `RESULT.md` | 사용자의 채택·수정 후 채택·폐기·보류 결정 | 사용자 결정을 기록한 AI |
-| `context.md` | 지금 상태, 확인된 결과, 미해결 문제와 다음 담당 | 현재 작업을 인계하는 AI |
+| 문서 | 책임 |
+|---|---|
+| TASK.md | 사용자 원문, 유형, 실행 방식, Stage, 입출력과 완료 조건을 담은 작업 계약 |
+| context.md | 현재 상태와 RELAY 인계 스냅샷 |
+| DECISIONS.md | 사용자가 확정해야 할 중요한 방향 |
+| RESEARCH.md | 한 AI의 독립 조사 주장, 근거와 출처 |
+| COMPARE.md | 여러 후보 결과의 비교·선별과 Verified Set |
+| DESIGN.md | 개발 DESIGN Stage의 설계 결과 |
+| IMPLEMENTATION.md | 실제 구현, 실행·테스트 결과 |
+| REVIEW.md | 선택·종합된 결과의 독립 최종 검증 |
+| RESULT.md | 사용자 판단과 TASK 종료 상태 |
 
-문서 작성 정보와 역할 예외의 정본은 루트 `AGENTS.md`를 따른다. 같은 사실을 여러
-문서에 장황하게 복제하지 않고, 각 문서의 책임에 맞는 내용과 관련 문서 포인터만 남긴다.
+COMPARE는 후보를 비교하고 신뢰할 내용을 선별한다. REVIEW는 선택·종합된 결과가 TASK와 근거에
+맞는지 독립 검증한다. RESULT는 artifact가 아니라 종료 기록이다.
 
 ## 작업 주기
 
-1. 이전 TASK가 종료되었고 관련 shared 문서가 Git commit으로 보존됐는지 확인한다.
-2. 보존되지 않았다면 임의로 commit하지 않고 사용자에게 local checkpoint를 제안한다.
-3. 새 `TASK-YYYY-MM-DD-NNN`을 정하고 작업 문서를 새 TASK 기준으로 초기화한다.
-4. `shared/TASK.md`에 공식 MODE(`RELAY`, `PIPELINE`, `PARALLEL`)와 현재 역할을 기록한다.
-5. `TASK → DECISIONS/DESIGN → IMPLEMENTATION → REVIEW → RESULT` 문서 책임에 맞춰 기록한다.
-6. 릴레이로 담당을 넘길 때마다 `context.md`를 현재 상태의 짧은 스냅샷으로 갱신한다.
-7. 병렬 작업은 각 branch의 문서를 독립적으로 유지하고 비교·통합 대상을 commit으로 식별한다.
-8. 사용자 최종 판단 후 결과를 보존하고 다음 TASK 전까지 기존 기록을 덮어쓰지 않는다.
+1. 이전 TASK가 종료되고 Git에 보존됐는지 확인한다.
+2. 보존되지 않았다면 local checkpoint를 제안하되 승인 없이 commit하지 않는다.
+3. 새 TASK-ID로 필요한 shared 문서를 초기화한다.
+4. TASK에 TASK-TYPE, EXECUTION, RELAY, CURRENT-STAGE, INPUT/OUTPUT-ARTIFACT를 기록한다.
+5. 현재 Stage에 필요한 문서만 사용하고 적용하지 않는 문서는 해당 없음과 이유를 짧게 남긴다.
+6. RELAY 때 context를 최신 상태로 갱신한다.
+7. PARALLEL은 각 branch에서 독립 결과를 만든 뒤 COMPARE에서 식별 가능한 checkpoint를 비교한다.
+8. 독립 REVIEW와 사용자 결정 후 artifact와 RESULT를 확정한다.
 
-## 초기화 기준
+## 초기화와 작성 정보
 
-- 파일은 삭제하지 않고 제목과 기본 안내를 유지한 채 새 TASK 내용으로 교체한다.
-- 모든 작업 문서의 TASK-ID를 새 TASK-ID로 통일한다.
-- 실질 작성자는 자신의 실제 이름, 모델 확인 여부, 역할과 작성일을 기록한다.
-- 과거 작업 내용은 새 문서에 복사하지 않고 Git history에서 확인한다.
-- 적용되지 않는 단계는 비워 두지 말고 `해당 없음`과 그 근거를 짧게 기록한다.
-- `context.md`는 현재 상태, 다음 행동, 블로커만 남겨 빠르게 읽을 수 있게 유지한다.
-- RELAY에서는 `IMPLEMENTATION.md`의 기존 구현 기록을 지우지 않고 작성자·모델·역할·작성일별 항목으로 누적한다.
-- 병렬 branch의 작업 문서를 하나로 합칠 때 상단 메타데이터와 결과 본문을 무조건 결합하지 않고,
-  승인된 통합 결과와 실제 마지막 작성자를 기준으로 정리한다.
-
-작성 정보 기본 형식:
-
-```markdown
-## 작성 정보
-
-- 작성자: <실제 작성 AI>
-- 모델: <실제 모델 또는 미확인>
-- 역할: <실제 수행 역할>
-- 작성일: YYYY-MM-DD
-- TASK-ID: TASK-YYYY-MM-DD-NNN
-```
-
-## 상태 구분
-
-- `IMPLEMENTATION.md`의 자체 실행 결과는 구현 확인이며 독립 검수가 아니다.
-- `REVIEW.md`의 `완료 후보`는 독립 검수 결과이며 사용자의 최종 채택이 아니다.
-- `RESULT.md`만 사용자의 최종 판단과 최종 branch·commit·merge·push 상태를 기록한다.
-- 독립 검수를 수행하지 않았다면 `REVIEW.md`를 통과로 작성하지 않고 `미수행`으로 남긴다.
+- 이전 TASK 내용을 복사해 누적하지 않고 Git history에서 확인한다.
+- 실질 작성자는 문서 상단에 실제 작성자, 확인 가능한 모델 또는 미확인, 실제 역할, 작성일과 TASK-ID를 기록한다.
+- 단순 열람이나 오탈자 수정에는 작성 정보를 바꾸지 않는다.
+- IMPLEMENTATION은 RELAY 중 여러 구현자의 범위를 작성자별 항목으로 누적할 수 있다.
+- context는 완료·진행·남은 작업, Stage/STATUS, Git·검증·산출물과 다음 인계를 간결하게 유지한다.
+- 독립 검수를 수행하지 않았다면 REVIEW를 통과로 기록하지 않는다.
 
 ## 새 TASK 점검표
 
-- [ ] 이전 TASK 기록이 Git에 보존되어 있다.
-- [ ] 새 TASK-ID가 기존 기록과 중복되지 않는다.
-- [ ] 모든 shared 작업 문서의 TASK-ID와 작성일이 현재 작업과 일치한다.
-- [ ] `TASK.md`에 목표, 범위, 비범위와 완료 기준이 있다.
-- [ ] `TASK.md`에 `RELAY`, `PIPELINE`, `PARALLEL` 중 현재 MODE와 현재 역할이 명시돼 있다.
-- [ ] 병렬 작업이면 기준 commit, 작업선, 비교 담당·기록 위치와 통합 기준 branch가 명시돼 있다.
-- [ ] 사용자 판단이 필요한 항목과 작은 구현 세부가 구분돼 있다.
-- [ ] 구현·검수·최종 판단 상태를 서로 혼동하지 않았다.
-- [ ] `context.md`에 다음 담당과 다음 확인 사항이 명확하다.
+- [ ] TASK-ID와 사용자 원문 요청이 있다.
+- [ ] TASK-TYPE, EXECUTION, RELAY, CURRENT-STAGE가 있다.
+- [ ] INPUT-ARTIFACT와 OUTPUT-ARTIFACT가 있다.
+- [ ] 목표, 범위, 제약과 완료 조건이 있다.
+- [ ] PARALLEL이면 기준 commit, 독립 작업선, 비교 담당·대상과 통합 기준이 있다.
+- [ ] context만으로 같은 Stage와 역할을 이어받을 수 있다.
+- [ ] shared 과정 문서와 artifacts 최종 결과를 혼동하지 않았다.
+- [ ] 사용자 중요 결정과 작은 내부 판단을 구분했다.

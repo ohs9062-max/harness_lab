@@ -29,3 +29,13 @@
 - 일반 개발은 `PIPELINE`을 기본값으로 하고 모든 AI가 `shared/TASK.md`의 MODE를 먼저 확인하도록 했다.
 - RELAY context 인계 필드, PARALLEL worktree/checkpoint와 사용자 승인 후 통합 규칙을 역할·운영 문서에 맞췄다.
 - 관련 작업: `TASK-2026-08-21-002`.
+
+## 2026-08-27 — 문서 기반 하네스 V2
+
+- 이 정의는 2026-08-21 항목의 “세 운영 모드” 구조를 대체한다. 이전 항목은 당시 이력으로 보존한다.
+- 실행 방식은 `PIPELINE`과 `PARALLEL`로 한정하고 `RELAY`를 실행 중 사용할 수 있는 인계 방식으로 분리했다.
+- AI 고정 역할보다 사용자 지시, TASK, 현재 Stage와 RELAY 전달 역할을 우선하도록 운영 기준을 바꿨다.
+- 독립 조사 `RESEARCH`, 후보 선별 `COMPARE`, 독립 최종 검증 `REVIEW`의 책임을 분리했다.
+- `artifacts/`를 추가해 shared 과정 문서와 후속 TASK에서 재사용할 최종 결과물을 구분했다.
+- TASK 계약과 context 인계 필드를 V2 메타데이터로 보강했다.
+- 관련 작업: `TASK-2026-08-27-001`.
