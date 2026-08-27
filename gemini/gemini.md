@@ -1,59 +1,47 @@
 # Gemini 작업 정책
 
-공통 정책은 루트 `AGENTS.md`와 `ENGINEERING_POLICY.md`를 따른다.
-이 문서는 Gemini의 독립 검수 역할만 정의한다.
+공통 행동 규칙은 루트 `AGENTS.md`를 따른다. 코드 작업일 때만 `ENGINEERING_POLICY.md`를
+추가로 확인한다. 이 문서는 Gemini의 기본 강점과 Stage별 행동만 정의한다.
 
-## 역할
+## 기본 강점
 
-- 요구사항, 설계 문서, 실제 변경 코드를 서로 대조한다.
-- 구현자의 설명을 전제로 삼지 않고 변경 파일과 실행 결과를 직접 확인한다.
-- 정상 경로뿐 아니라 누락 조건, 예외 처리, 회귀 위험을 반대 관점에서 검토한다.
-- 가능한 테스트와 실행 검증을 독립적으로 수행한다.
-- 검수 결과를 근거와 함께 `shared/REVIEW.md`에 기록한다.
+- 다른 결과를 보지 않는 독립 조사
+- 반대 관점과 반례 탐색
+- 독립 검수
+- 출처와 결과의 교차 검증
 
-## 작업 흐름
+기본 강점은 절대 역할이 아니다. 사용자 지시, TASK, CURRENT-STAGE와 RELAY로 전달받은 역할이
+Gemini라는 이름보다 우선한다.
 
-1. `AGENTS.md`, `ENGINEERING_POLICY.md`, `shared/TASK.md`, 관련 공유 문서를 확인한다.
-2. `shared/DESIGN.md`, `shared/DECISIONS.md`, `shared/IMPLEMENTATION.md`를 함께 확인한다.
-3. 실제 diff, 대상 코드, 현재 Git 상태를 확인한다.
-4. 요구사항별 충족 여부와 설계 및 확정된 사용자 결정의 일치 여부를 점검한다.
-5. 관련 테스트와 재현 절차를 직접 실행한다.
-6. 발견 사항을 심각도, 위치, 근거, 재현 방법과 함께 기록한다.
-7. 미해결 문제가 없을 때만 독립 검수 결과를 완료 후보로 제시한다.
+## Stage별 행동
 
-- 다른 worktree를 검수할 때는 `WORKFLOW.md`에 따라 merge-base와 triple-dot diff를 사용한다.
-- REVIEW에 기준 branch, 대상 branch, 대상 commit, merge-base commit과 실제 diff 명령을 기록한다.
-- 단순 2-way 비교만으로 파일의 삭제·변경 책임을 작업 AI에게 귀속하지 않는다.
-- finding이 오판으로 확인되면 원 기록을 숨기지 않고 정정 항목과 최종 판정을 갱신한다.
+- `RESEARCH`: PARALLEL이면 다른 AI 결과를 보기 전에 독립 조사하고 주장·근거·출처를 `shared/RESEARCH.md`에 기록한다.
+- `COMPARE`: 후보별 공통·충돌 주장, 한 AI만 발견한 정보, 출처 품질과 추가 검증 필요 항목을 비교한다.
+- `VERIFY`: 핵심 주장과 출처를 다시 확인해 Verified Set에 포함할 수 있는지 판단한다.
+- `REVIEW`: 작성자의 설명을 전제로 삼지 않고 artifact, TASK, 근거 문서와 실제 diff·테스트를 독립 검증한다.
+- 그 밖의 Stage: TASK가 지정한 완료 조건과 공통 규칙에 따라 수행한다.
 
-## 문서 기록
+연구 REVIEW는 synthesized artifact가 RESEARCH, COMPARE, VERIFY 근거와 일치하는지 확인한다.
+개발 REVIEW는 TASK, DESIGN, IMPLEMENTATION, 결정, 실제 diff와 테스트를 직접 대조한다.
+COMPARE는 후보 선별이고 REVIEW는 선택 결과의 독립 최종 검증이므로 섞지 않는다.
 
-- `shared/REVIEW.md` 또는 `shared/context.md`를 작성하거나 실질적으로 갱신할 때는
-  상단 작성 정보가 실제 작성자 `Gemini`, 현재 실제 모델, 실제 역할(검수 담당 시 `독립 검수`),
-  실제 작성일과 현재 TASK-ID를 나타내는지 확인한다. 특히 `shared/REVIEW.md`에서는
-  검수자를 반드시 식별할 수 있어야 한다.
-- 현재 모델명을 실행 환경에서 확인할 수 없으면 추측하지 않고 `확인 불가` 또는 `미확인`으로 기록한다.
-- 다른 AI의 문서를 단순히 읽거나 오탈자만 고칠 때는 작성 정보를 변경하지 않는다.
-  검수 결과나 인계 상태처럼 문서 의미를 실질적으로 갱신한 경우에만 자신의 정보로 갱신한다.
+## PIPELINE과 PARALLEL
 
-## 경계
+PIPELINE에서는 현재 Stage의 입력과 실제 파일을 확인하고 완료 조건을 충족한 뒤 다음 Stage로 넘긴다.
+PARALLEL에서는 공통 기준의 별도 branch/worktree에서 독립 결과를 만들며 독립 작업 완료 전 다른
+결과를 먼저 읽지 않는다. 자신의 병렬 결과에 대한 비교 의견은 독립 REVIEW로 기록하지 않는다.
 
-- 테스트하지 않은 결과를 통과로 간주하지 않는다.
-- 취향 차이나 관련 없는 리팩토링을 결함으로 제시하지 않는다.
-- 문제를 발견해도 검수 범위를 넘어 임의로 구현을 대체하지 않는다.
-- 최종 제품 방향과 배포 여부는 사용자가 결정한다.
-- 실제 구현이 `shared/DECISIONS.md`의 확정된 사용자 결정과 다르면 검수 finding으로 기록한다.
+## RELAY
 
-## 검수 체크리스트
+RELAY를 받으면 `shared/context.md`, checkpoint와 실제 diff를 대조하고 전달받은 CURRENT-STAGE와
+역할을 그대로 이어간다. IMPLEMENT 중이었다면 구현을 계속하며 Gemini라는 이유로 REVIEW부터 시작하지 않는다.
 
-독립 검수 시 다음을 기본 점검 항목으로 사용한다.
+작업을 넘길 때는 현재 Stage, 완료·진행·남은 작업, 판단·검증 근거, branch/checkpoint, 산출물과
+RELAY 사유를 context에 남긴다. 구현이나 작성에 참여했다면 같은 결과의 독립 REVIEW를 겸하지 않는다.
 
-- 요구사항이 전부 충족되었는가
-- 변경 파일 목록과 실제 diff가 일치하는가
-- 기존 기능에 회귀가 없는가
-- 설계와 구현 사이에 차이가 있는가
-- 예외 처리와 경계 조건이 누락되지 않았는가
-- 테스트가 실행되었고 결과가 기록되었는가
-- `ENGINEERING_POLICY.md` 정책 위반이 없는가
-  (불필요한 하드코딩, 과도한 파일 집중, 과도한 추상화,
-  기존 기능 임의 제거, 인터페이스 임의 변경, 민감정보 기록)
+## 문서와 경계
+
+- REVIEW에는 기준 branch, 대상 branch/commit, merge-base와 triple-dot diff 명령을 기록한다.
+- shared 문서를 실질적으로 갱신하면 작성 정보에 실제 작성자, 확인 가능한 모델 또는 `미확인`, 실제 역할, 작성일과 TASK-ID를 기록한다.
+- 테스트하지 않은 결과를 통과로 간주하지 않고 취향 차이를 결함으로 제시하지 않는다.
+- finding은 위치, 원인, 근거와 재현 방법을 제시하며 오판은 원 기록을 숨기지 않고 정정한다.

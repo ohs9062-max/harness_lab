@@ -3,63 +3,50 @@
 ## 작성 정보
 
 - 작성자: Codex
-- 모델: GPT-5
-- 역할: 구현
-- 작성일: 2026-08-13
-- TASK-ID: TASK-2026-08-13-001
+- 모델: 미확인
+- 역할: V2 문서 구조 구현
+- 작성일: 2026-08-27
+- TASK-ID: TASK-2026-08-27-001
 
-Codex가 실제 구현과 자체 검증 결과를 기록한다. 이 문서는 최종 승인서가 아니다.
+## 작업 메타데이터
 
-## 구현 내용
+- TASK-ID: TASK-2026-08-27-001
+- Stage: IMPLEMENT / TEST
+- 입력 artifact: 없음
+- 관련 decision: D-001, D-002
+- 작업 branch: ohs9062-max/sol-low-to-middle
+- 기준 branch: master
+- 기준 branch 확인 commit: ed672fa
+- 작업 시작 commit: ab16a11
+- 구현 commit: 6261c47
+- merge: 수행하지 않음
+- push: origin/ohs9062-max/sol-low-to-middle에 수행
 
-- `demo/config_cli.py`는 JSON 설정 파일을 표준 라이브러리 `json`으로 읽고, 하나의 key 인자를 받아 값을 출력한다.
-- 설정값은 `demo/config.json`에 분리했으며, 현재 `robot_name` 값은 `litbot`이다.
-- 인자 누락, 설정 파일 읽기 또는 JSON 파싱 실패, JSON 최상위 값이 객체가 아닌 경우, 없는 key를 명확한 오류와 0이 아닌 종료 코드로 처리한다.
-- YAML은 표준 라이브러리에 파서가 없으므로 요구사항에서 허용한 JSON 형식을 선택했다. 외부 라이브러리는 추가하지 않았다.
+## 구현 결과
+
+- AGENTS와 WORKFLOW에서 PIPELINE/PARALLEL 실행과 RELAY 인계를 분리했다.
+- Stage 목록과 AI 이름보다 현재 Stage·전달 역할이 우선하는 규칙을 추가했다.
+- 역할 문서를 기본 강점과 Stage별 행동 중심으로 정리했다.
+- TASK/context를 V2 메타데이터와 RELAY 인계 구조로 갱신했다.
+- RESEARCH, COMPARE와 artifacts 책임을 추가하고 shared 문서 간 경계를 정리했다.
+- README와 CHANGELOG에서 V2 목적과 변경 이력을 연결했다.
 
 ## 변경 파일
 
-- `demo/config_cli.py`: JSON 설정 조회 CLI를 추가했다.
-- `demo/config.json`: 코드에서 분리된 데모 설정값을 추가했다.
-- `shared/IMPLEMENTATION.md`: 구현 및 자체 검증 결과를 기록했다.
-- `shared/context.md`: Gemini 검수용 인계 상태를 갱신했다.
+- 수정: AGENTS.md, CHANGELOG.md, README.md, WORKFLOW.md
+- 수정: claude/claude.md, codex/codex.md, gemini/gemini.md
+- 수정: shared/DECISIONS.md, DESIGN.md, IMPLEMENTATION.md, README.md, RESULT.md, REVIEW.md, TASK.md, context.md
+- 추가: shared/RESEARCH.md, shared/COMPARE.md, artifacts/README.md
 
-## Git 기준
+## 자체 검증
 
-- 작업 branch: `ohs9062-max/harness-demo-task-codex`
-- 기준 commit: `23c79a5`
-- 구현 commit: `49dc64c`
+- `git diff --check`: 통과
+- TASK 필수 필드 12개와 context 인계 필드 25개: 모두 확인
+- 이전 RELAY-as-MODE 정의와 금지된 신규 문서·디렉토리 검색: 잔존·추가 없음
+- PIPELINE/PARALLEL/RELAY, Stage 우선, COMPARE/REVIEW, artifact 재사용 규칙: 확인
+- Git 안전, merge-base/triple-dot 규칙: 유지 확인
+- ENGINEERING_POLICY.md와 demo/: diff 없음
+- branch/worktree 생성·삭제와 merge: 수행하지 않음
+- 사용자 지시에 따라 checkpoint commit 6261c47 생성 및 origin 작업 branch push 완료
 
-## 실행 및 테스트
-
-다음 명령을 직접 실행했다.
-
-```sh
-python3 -m py_compile demo/config_cli.py
-python3 demo/config_cli.py robot_name
-python3 demo/config_cli.py unknown_key
-python3 demo/config_cli.py
-mv demo/config.json demo/config.json.testing-backup
-python3 demo/config_cli.py robot_name
-mv demo/config.json.testing-backup demo/config.json
-python3 demo/config_cli.py robot_name
-```
-
-실제 결과:
-
-- 컴파일 검사: 종료 코드 0.
-- 존재하는 key: `litbot`, 종료 코드 0.
-- 없는 key: `ERROR: key 'unknown_key' not found`, 종료 코드 1.
-- 인자 없음: `ERROR: provide exactly one key`, 종료 코드 2.
-- 설정 파일을 일시적으로 없앤 경우: `ERROR: could not read configuration: [Errno 2] No such file or directory: '.../demo/config.json'`, 종료 코드 1.
-- 설정 파일을 복원한 뒤 재조회: `litbot`, 종료 코드 0.
-- 사후 격리 검증에서 손상된 JSON과 최상위 배열을 각각 실행했고 모두 종료 코드 1을 확인했다.
-
-## 설계와의 차이
-
-- Claude 설계 문서는 이번 데모에 대해 작성되지 않았다. 사용자 지시에 따라 Codex가 최소 설계 판단과 구현을 함께 수행했다.
-
-## 검수 요청 사항
-
-- Gemini는 실제 변경 파일과 위 명령을 독립적으로 확인하고, 요구사항에 없는 구조나 의존성이 추가되지 않았는지 검수한다.
-- 설정 파일이 없거나 손상됐을 때의 오류 메시지와 종료 코드가 사용 목적에 충분히 명확한지 확인한다.
+자체 검증은 독립 REVIEW가 아니다.
