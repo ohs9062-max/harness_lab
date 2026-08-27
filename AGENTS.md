@@ -51,6 +51,11 @@
 사용자 의도가 불명확하면 임의로 확정하지 않고 사용자에게 확인한다. `RELAY`는 실행 방식이
 아니라 어느 실행 방식에서도 발생할 수 있는 인계 방식이다.
 
+최초 사용자 요청을 받은 AI는 `DEFINE Coordinator`를 맡아 원문 요청을 보존하고 TASK-TYPE,
+대표 EXECUTION, 필요한 Stage와 `STAGE-PLAN`, 입출력 artifact, 목표·범위·제약과 완료 조건을
+`shared/TASK.md`에 작성한다. 결과 방향을 바꾸지 않는 운영 판단은 스스로 정할 수 있지만 중요한
+범위·구조·의도 분기나 품질·비용에 큰 영향을 주는 PARALLEL 선택은 11번 의사결정 게이트를 따른다.
+
 ## 4. 작업 계획
 
 작업 전에 다음 내용을 짧게 판단한다.
@@ -98,6 +103,11 @@
 - 기존 기능에 미치는 영향
 
 문제가 발견되면 막연히 표현하지 말고 파일, 위치, 원인을 근거로 제시한다.
+
+독립 REVIEW는 최종 결과물 작성·수정에 참여하지 않은 AI 또는 같은 AI의 별도 fresh independent
+session이 수행한다. 동일 세션이 RESEARCH, COMPARE, SYNTHESIZE 등으로 만든 결과를 이어서
+독립 검수했다고 기록하지 않는다. REVIEW 판정은 `PASS`, `FIX_REQUIRED`, 필요 시 `BLOCKED`만
+사용하며 모호한 표현으로 다음 Stage를 자동 진행하지 않는다.
 
 ## 7. Git 안전 규칙
 
@@ -235,7 +245,7 @@ AI별 작업 항목을 누적할 수 있다. 이 경우에도 문서 상단 작�
 RELAY가 발생할 때는 다음 내용을 간결하게 남긴다.
 
 - TASK-ID, TASK-TYPE과 EXECUTION
-- CURRENT-STAGE와 STATUS
+- CURRENT-STAGE, STATUS와 Stage Plan 상태 요약
 - 이전/현재 작업자, 실제 모델과 현재 역할
 - 완료한 Stage와 작업, 현재 작업 중인 내용과 남은 작업
 - 중요한 판단, 주의사항과 제약
@@ -312,11 +322,11 @@ AI 간 의견이 충돌할 때(예: 검수에서 설계 자체를 문제로 지�
 4. RELAY로 전달된 역할
 5. AI 기본 강점
 
-대표 Stage는 다음과 같으며 TASK 성격에 필요한 Stage만 선택한다.
+대표 Stage는 다음과 같으며 TASK 성격에 필요한 Stage만 선택한다. 대괄호 Stage는 조건부다.
 
 ```text
-DEFINE → RESEARCH → COMPARE → VERIFY → SYNTHESIZE → FINAL
-ANALYZE → DESIGN → IMPLEMENT → TEST → REVIEW → FIX → FINAL
+DEFINE → RESEARCH → [COMPARE] → VERIFY → SYNTHESIZE → REVIEW → FINAL
+ANALYZE → DESIGN → IMPLEMENT → TEST → REVIEW → [FIX → TEST → REVIEW] → FINAL
 ```
 
 Stage는 고정된 전체 절차가 아니다. 연구·전략 작업은 앞줄을, 개발 작업은 뒷줄을 기본
@@ -349,25 +359,22 @@ RELAY로 받은 역할이 다르면 해당 Stage와 역할을 그대로 수행�
 - `PARALLEL`: 같은 Stage 또는 같은 문제를 여러 AI가 독립적으로 수행한 뒤 비교한다.
 
 현재 실행 방식은 `shared/TASK.md`의 `EXECUTION`에 정확한 영문 값으로 기록한다. 실행 방식을
-바꾸려면 이유와 영향을 TASK와 context에 갱신한다.
+바꾸려면 이유와 영향을 TASK와 context에 갱신한다. 최상위 `EXECUTION`은 TASK의 대표 실행
+성격이고 실제 Stage별 실행 방식과 담당은 `STAGE-PLAN`이 정본이다. 최상위 값만 보고 모든 Stage를
+같은 방식으로 실행하지 않는다.
+
+각 Stage Plan은 최소한 execution, agent 또는 agents, required, status를 식별한다. status는
+`PENDING`, `IN_PROGRESS`, `DONE`, `WAIVED`, `BLOCKED`만 사용한다. required Stage는 원칙적으로
+`DONE`이어야 하며 AI가 임의로 `WAIVED` 처리할 수 없다. 생략에는 사용자 승인 또는 TASK에 명시된
+예외가 필요하고 `waived-by`, `reason`을 남긴다. Stage Exit Gate와 재작업 Loop의 상세는
+`WORKFLOW.md`를 따른다.
 
 ### PIPELINE
 
-연구·전략 작업의 대표 흐름:
-
-```text
-DEFINE → RESEARCH → COMPARE → VERIFY → SYNTHESIZE → FINAL
-```
-
-개발 작업의 대표 흐름:
-
-```text
-ANALYZE → DESIGN → IMPLEMENT → TEST → REVIEW → FIX(필요 시) → FINAL
-```
-
 - Stage마다 이전 설명만 믿지 않고 입력 문서, artifact와 실제 파일을 확인한다.
-- 일부 Stage를 생략할 수 있으며 TASK에 필요한 Stage와 완료 조건을 명시한다.
+- 다음 Stage로 넘어가기 전에 WORKFLOW의 Exit Gate를 충족하고 Stage Plan status를 갱신한다.
 - 구현에 참여한 AI는 같은 결과의 독립 REVIEW를 겸하지 않는다.
+- FINAL 직전 모든 required Stage가 `DONE` 또는 근거가 있는 `WAIVED`인지 확인한다.
 - 최종 승인자는 사용자다.
 
 ### PARALLEL
