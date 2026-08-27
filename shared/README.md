@@ -10,8 +10,8 @@ shared/는 현재 TASK의 계약, 작업 과정, 근거, 비교, 검수와 인�
 | TASK.md | 사용자 원문, 대표 실행 방식, Stage Plan, 입출력과 완료 조건을 담은 작업 계약 |
 | context.md | 현재 상태, Stage status 요약과 RELAY 인계 스냅샷 |
 | DECISIONS.md | 사용자가 확정해야 할 중요한 방향 |
-| RESEARCH.md | Claim ID와 Source ID로 연결된 독립 조사 근거와 VERIFY 결과 |
-| COMPARE.md | Claim ID별 후보 비교·선별, VERIFY 결과와 Verified Set |
+| RESEARCH.md | 작성 AI namespace의 원본 Claim/Source ID로 연결된 독립 조사 근거와 VERIFY 결과 |
+| COMPARE.md | Normalized Claim과 원본 ID 매핑, VERIFY 결과와 Verified Set |
 | DESIGN.md | 개발 DESIGN Stage의 설계 결과 |
 | IMPLEMENTATION.md | 실제 구현, 실행·테스트 결과 |
 | REVIEW.md | 선택·종합된 결과의 독립 최종 검증 |
@@ -19,6 +19,10 @@ shared/는 현재 TASK의 계약, 작업 과정, 근거, 비교, 검수와 인�
 
 COMPARE는 후보를 비교하고 신뢰할 내용을 선별한다. REVIEW는 선택·종합된 결과가 TASK와 근거에
 맞는지 독립 검증한다. RESULT는 artifact가 아니라 종료 기록이다.
+
+새 TASK의 PARALLEL RESEARCH는 각 AI가 자기 namespace 원본 ID를 독립 생성한다. 같은 의미의
+원본 Claim은 COMPARE에서만 Normalized Claim으로 묶고 원본 ID는 보존한다. 기존 TASK와 Git history의
+`C-001`/`S-001` 기록은 당시 형식을 유지하며 일괄 변경하지 않는다.
 
 ## 작업 주기
 

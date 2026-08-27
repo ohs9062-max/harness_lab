@@ -4,13 +4,13 @@
 
 - 작성자: Codex
 - 모델: 미확인
-- 역할: Claim별 비교·검증 템플릿 보강
+- 역할: Normalized Claim 비교 템플릿 보강
 - 작성일: 2026-08-27
-- TASK-ID: TASK-2026-08-27-002
+- TASK-ID: TASK-2026-08-27-003
 
 ## 작업 식별
 
-- TASK-ID: TASK-2026-08-27-002
+- TASK-ID: TASK-2026-08-27-003
 - Stage: COMPARE / VERIFY
 - 현재 TASK 적용: 해당 없음 — PARALLEL 미사용
 
@@ -22,77 +22,101 @@
 | Codex | 해당 없음 | 해당 없음 |
 | Gemini | 해당 없음 | 해당 없음 |
 
-## Claim별 비교
+## Normalized Claims
 
-COMPARE는 AI의 우열이 아니라 어떤 정보가 채택 가능한지를 판단한다.
+COMPARE만 N-Cxxx를 생성한다. N-C는 원본 Claim ID를 대체하지 않으며, 같은 의미의 주장만 묶는다.
+인과관계나 주장 의미가 다른 유사 Claim은 별도 N-C로 유지한다.
 
-### C-001
+### N-C001
 
-#### Claude
+- 정규화 주장:
+- 원본 Claim:
+  - Claude: CLAUDE-C003
+  - Codex: CODEX-C008
+  - Gemini: GEMINI-C002
+
+#### AI별 판정
+
+Claude:
 - 상태: CONFIRMED
-- SOURCE-ID: S-001
+- Source: CLAUDE-S002
 
-#### Codex
+Codex:
 - 상태: PROBABLE
-- SOURCE-ID: S-004
+- Source: CODEX-S005
 
-#### Gemini
-- 상태: CONFLICTED
-- SOURCE-ID: S-008
+Gemini:
+- 상태: CONFIRMED
+- Source: GEMINI-S004
 
-- 최종 비교 상태: VERIFY_REQUIRED
-- 비교 근거:
-- 추가 VERIFY 항목:
+#### 비교 결과
+
+- 상태: VERIFY_REQUIRED
+- 충돌 여부:
+- 추가 검증:
+
+## Source 관계
+
+동일 URL 또는 원출처를 여러 AI가 발견한 경우 원본 Source ID는 유지하고, 독립 근거 수를 중복 계산하지
+않는다. 필요할 때만 아래처럼 COMPARE 안에서 관계를 기록한다.
+
+### SG-001
+
+- source-origin: same
+- 원출처:
+- 원본 Source: CLAUDE-S002, CODEX-S005, GEMINI-S001
 
 ## 공통 주장
 
-- Claim ID:
+- Normalized Claim:
 - 내용:
 
 ## 충돌 주장
 
-- Claim ID:
+- Normalized Claim 또는 원본 Claim:
 - 충돌 내용:
 
 ## 한 AI만 발견한 중요 정보
 
-- Claim ID:
+- 원본 Claim ID:
 - 발견 AI:
 - 중요성:
 
 ## 출처 품질 비교
 
-- Claim ID:
-- Source ID별 품질 차이:
+- Normalized Claim:
+- 원본 Source ID별 품질 차이:
 
 ## 추가 검증 필요 항목
 
-- Claim ID:
+- Normalized Claim:
 - 검증 질문:
 
 ## 재검증 결과
 
-- Claim ID:
+- Normalized Claim:
+- 관련 원본 Claim/Source:
 - 검증 결과:
 - 최종 상태:
 - unresolved 항목:
 
-VERIFY 결과는 이 절 또는 RESEARCH에 기록하되 최종 통과 여부는 아래 Verified Set에서 식별한다.
+PARALLEL VERIFY는 가능한 한 Normalized Claim에서 관련 원본 Claim/Source까지 역추적한다.
 
 ## 채택한 주장
 
-- Claim ID:
+- Normalized Claim:
 - 채택 이유:
 
 ## 제외한 주장과 이유
 
-- Claim ID:
+- Normalized Claim 또는 원본 Claim:
 - 제외 이유:
 
 ## Verified Set
 
-| Claim ID | 최종 상태 | 채택 Source ID | 검증 근거 | artifact 반영 위치 |
-|---|---|---|---|---|
-| C-001 | 해당 없음 | 해당 없음 | 해당 없음 | 해당 없음 |
+| Normalized Claim | 원본 Claim | 최종 상태 | 채택 Source | 검증 근거 | artifact 반영 |
+|---|---|---|---|---|---|
+| N-C001 | CLAUDE-C003 / CODEX-C008 / GEMINI-C002 | 해당 없음 | 해당 없음 | 해당 없음 | 해당 없음 |
 
-최종 결과물에 포함 가능한 검증된 정보만 기록한다. 선택·종합된 결과의 독립 검증은 REVIEW가 담당한다.
+최종 artifact는 가능하면 Normalized Claim 기준으로 근거를 추적한다. artifact 본문에 N-C ID를
+노출할 필요는 없지만 REVIEW가 artifact 주장 → N-C → 원본 Claim/Source를 따라갈 수 있어야 한다.

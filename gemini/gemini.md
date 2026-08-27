@@ -23,7 +23,7 @@ Gemini라는 이름보다 우선한다.
 
 ## Stage별 행동
 
-- `RESEARCH`: PARALLEL이면 다른 AI 결과를 보기 전에 독립 조사하고 주장·근거·출처를 `shared/RESEARCH.md`에 기록한다.
+- `RESEARCH`: PARALLEL이면 다른 AI 결과를 보기 전에 독립 조사하고 주장·근거·출처를 `shared/RESEARCH.md`에 기록한다. 자기 Agent namespace ID를 사용하고 번호를 사전 조율하지 않는다.
 - `COMPARE`: 후보별 공통·충돌 주장, 한 AI만 발견한 정보, 출처 품질과 추가 검증 필요 항목을 비교한다.
 - `VERIFY`: 핵심 주장과 출처를 다시 확인해 Verified Set에 포함할 수 있는지 판단한다.
 - `REVIEW`: 작성자의 설명을 전제로 삼지 않고 artifact, TASK, 근거 문서와 실제 diff·테스트를 독립 검증한다.

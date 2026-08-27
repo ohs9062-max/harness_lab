@@ -385,6 +385,10 @@ PARALLEL은 같은 Stage나 문제를 독립 작업선에서 수행해 비교 �
 - 각 AI는 별도 branch/worktree에서 결과와 근거를 만들며 독립 작업 완료 전 다른 AI 결과를
   먼저 읽거나 복사해 결론을 맞추지 않는다.
 - PARALLEL RESEARCH는 각 branch의 `shared/RESEARCH.md`에 기록한다.
+- PARALLEL RESEARCH의 원본 Claim/Source ID는 작성 AI namespace를 사용한다. 예: `CLAUDE-C001`,
+  `CODEX-S001`. 다른 AI 결과를 보고 번호를 맞추지 않으며 원본 ID는 유지한다.
+- COMPARE는 같은 의미의 원본 Claim만 `N-Cxxx` Normalized Claim으로 묶는다. 의미나 인과관계가
+  다른 유사 주장을 억지로 합치지 않고, 세부 매핑은 `shared/RESEARCH.md`, `shared/COMPARE.md`를 따른다.
 - 독립 작업 후 `shared/COMPARE.md`에서 공통·충돌 주장, 출처 품질, 재검증 결과와 Verified Set을 만든다.
 - 비교 결과가 사용자 중요 결정에 해당하면 `shared/DECISIONS.md`에서 확정받는다.
 - 사용자 승인 전 결과를 merge, cherry-pick 또는 수동 통합하지 않는다.
