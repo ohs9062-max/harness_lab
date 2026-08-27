@@ -37,7 +37,7 @@ Claim 상세는 RESEARCH/COMPARE가 정본이다. 현재 COMPARE 결과: 해당 
 ## 진행 상태
 
 - 완료한 작업: namespace 규칙, N-C 매핑, Source 중복·artifact/REVIEW 추적 보강과 15개 자체 검증
-- 현재 작업 중: master merge 완료, origin/master push 대기
+- 현재 작업 중: 없음 — master merge와 origin/master push 완료
 - 남은 작업: fresh independent session의 REVIEW, 판정에 따른 FIX Loop 또는 사용자 FINAL 판단
 
 ## 판단과 제약
@@ -55,7 +55,7 @@ Claim 상세는 RESEARCH/COMPARE가 정본이다. 현재 COMPARE 결과: 해당 
 - merge commit: adce7b8
 - 변경 파일: 기존 Markdown 문서 16개 수정, 신규 파일 없음
 - 테스트 상태: namespace/Normalized Claim/Source 중복/역추적 등 15개 요구 검사와 git diff --check 통과
-- push 상태: 작업 branch push 완료, origin/master push 대기
+- push 상태: 작업 branch와 origin/master push 완료
 
 ## 산출물
 

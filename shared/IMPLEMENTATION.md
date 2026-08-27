@@ -21,7 +21,7 @@
 - 구현 commit: 590b63f
 - merge commit: adce7b8
 - 작업 branch push: 수행
-- master push: 대기
+- master push: 수행
 
 ## 구현 결과
 
