@@ -31,3 +31,6 @@ Thumbs.db
 
 ## Obsidian (local only)
 .obsidian/
+
+## Harness Runtime
+.harness/
