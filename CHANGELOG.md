@@ -48,6 +48,27 @@
 - 독립 REVIEW 판정과 REVIEW/FIX 및 RESEARCH/VERIFY 재작업 Loop를 명확히 했다.
 - 관련 작업: `TASK-2026-08-27-002`.
 
+## 2026-09-02 — V3 재설계: MODE A / B / C 아키텍처
+
+- 이 항목은 이전 모든 문서 구조를 대체하는 V3 재설계다. 과거 항목은 당시 이력으로 보존한다.
+- 사용자가 "A/B/C로 해"로 지시하는 세 가지 실행 모드를 정의했다.
+  - MODE A (Parallel Competition): 같은 작업을 Codex/Gemini가 독립 수행 → Cross Review → Compare → 사용자 선택
+  - MODE B (Relay): 같은 작업을 다른 AI가 이어받아 계속
+  - MODE C (Role Pipeline): Claude 설계 → Codex 구현 → Gemini 검수
+- `MODES.md`를 신규 생성하여 A/B/C 실행 계약의 정본으로 사용한다.
+- `AGENTS.md`를 핵심 공통 규칙만 남기고 대폭 축소했다. (448줄 → ~160줄)
+- `WORKFLOW.md`를 MODE A/B/C별 운영 흐름으로 재작성했다.
+- `README.md`를 A/B/C 소개와 Protocol/Runner 자동화 현황으로 갱신했다.
+- 역할 문서 3개(`claude/claude.md`, `codex/codex.md`, `gemini/gemini.md`)를 MODE 우선 규칙으로 재작성했다.
+- `shared/README.md`를 `WORKFLOW.md`로 통합하고 삭제했다.
+- `무제.base`(빈 파일)를 삭제했다.
+- `shared/` 문서 9개를 빈 템플릿으로 초기화했다.
+- Git Preflight를 필수 Gate로 도입했다.
+- Entry AI와 Worker AI를 구분했다.
+- MODE A에서 Cross Review → Response → Compare → WAITING_USER 흐름을 명확히 했다.
+- Protocol(문서 계약)과 Runner(자동 실행)의 경계를 명시했다.
+- 기존 PIPELINE/PARALLEL은 내부 구현 용어로 유지하되 사용자 최상위 계약은 A/B/C로 통일했다.
+
 ## 2026-08-27 — PARALLEL Research ID namespace 보강
 
 - AI별 Claim/Source namespace를 도입하고 기존 기록은 당시 형식으로 유지했다.
