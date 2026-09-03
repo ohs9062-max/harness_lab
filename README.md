@@ -1,68 +1,67 @@
 # Harness Lab
 
-한 번의 자연어 작업 목표를 받아 로컬 Claude/Codex/Gemini CLI에 역할을 배정하고, 결과 인계·결정론적 검사·독립 검수·수정 루프까지 실행하는 다중 AI 하네스다.
+한 번의 목표를 Claude/Codex/Gemini CLI에 분배하고 Git worktree, 인계, 검사,
+검수, 수정과 사용자 선택까지 실행하는 V3 다중 AI Harness다. 문서는 계약의 정본이고
+`demo/orchestrator` Runner가 MODE A/B/C 계약을 구현한다.
 
-## 바로 실행
+## 실행
 
 ```bash
-# 환경과 인증 가능한 CLI 확인
 python3 -m demo.orchestrator --doctor
 
-# 계획만 확인(모델 호출/파일 변경 없음)
-python3 -m demo.orchestrator "이 저장소의 설정 로더를 구현하고 테스트해" --dry-run
+# A: Codex/Gemini 독립 경쟁 → WAITING_USER
+python3 -m demo.orchestrator "로그인 기능을 만들어" --mode A --execute
 
-# Coordinator가 계획을 만들고 실제 AI CLI 실행
-python3 -m demo.orchestrator "이 저장소의 설정 로더를 구현하고 테스트해" --execute
+# A: 기존 TASK 선택을 Codex가 통합
+python3 -m demo.orchestrator --mode A --resume TASK-ID \
+  --selection SELECT_GEMINI --execute
 
-# Coordinator 호출 없이 정책 기반 계획으로 실행
-python3 -m demo.orchestrator "이 저장소의 설정 로더를 구현하고 테스트해" \
-  --execute --deterministic-plan
+# B: 기존 작업선에서 Gemini가 남은 Stage를 계속
+python3 -m demo.orchestrator --mode B --resume TASK-ID \
+  --relay-agent gemini --execute
+
+# C: Claude 설계 → Codex 구현/검사 → Gemini 검수
+python3 -m demo.orchestrator "설정 로더를 구현하고 테스트해" --mode C --execute
 ```
 
-외부 Git 저장소에는 `--repo /absolute/path`를 사용한다. 추가 검사는 `--check "python3 -m pytest -q"`처럼 반복 지정할 수 있다. Runner는 shell 문자열을 실행하지 않고 argv로 분해한다.
+기본 MODE는 C이고 기본 실행은 dry-run이다. `--deterministic-plan`은 Coordinator 모델
+호출 없이 정책 계획을 만들며, `--fake-agents`는 외부 AI를 호출하지 않는 테스트용이다.
+외부 저장소는 `--repo /absolute/path`, 추가 검사는 `--check "python3 -m pytest -q"`로 지정한다.
 
-## 자동 실행 흐름
+## MODE
 
-```text
-사용자 목표
-  → Git Preflight
-  → Coordinator(Codex) 또는 deterministic routing
-  → Claude 중심 DESIGN/ANALYZE (실패 시 역할 fallback)
-  → Codex 중심 IMPLEMENT (공유 작업 트리에 실제 반영)
-  → CHECK (test/lint/typecheck/build 자동 발견)
-  → Gemini 독립 REVIEW
-      ├─ PASS → FINAL
-      ├─ FIX_REQUIRED → Codex FIX → CHECK → fresh REVIEW
-      └─ BLOCKED/무판정/반복 초과 → BLOCKED
-```
+- A: 같은 base commit에서 `task/<TASK-ID>/codex`, `task/<TASK-ID>/gemini`를 만들고
+  독립 구현·테스트·checkpoint 후에만 Cross Review와 1회 Response를 수행한다.
+  `.harness/runs/<TASK-ID>/compare.md` 생성 후 반드시 `WAITING_USER`에서 멈춘다.
+- B: 새 worktree를 만들지 않는다. 기존 state의 branch/worktree/checkpoint와 실제
+  `git status/log/diff`를 대조하고, Git을 정본으로 미완료 Stage부터 이어간다.
+- C: `task/<TASK-ID>/pipeline` worktree 하나에서 Claude→Codex→Gemini가 결과를 넘긴다.
+  `FIX_REQUIRED`면 기본 Codex, 실제 fallback 구현자가 있었다면 그 writer가 FIX한다.
 
-AI 출력은 `.harness/runs/<TASK-ID>/outputs/`에 분리 저장되고 `handoff.json`과 제한된 inline excerpt로 후속 AI에 전달된다. `state.json`은 현재 상태, `events.jsonl`은 상태 전이 감사 로그다. 로그의 일반적인 secret 패턴은 마스킹되고 크기가 제한된다.
+`PIPELINE`과 `PARALLEL`은 Stage 내부 실행 전략이며 사용자 MODE A/B/C가 아니다.
 
-## 안전 원칙
+## Git과 상태
 
-- Runner는 commit, merge, push, reset, branch 삭제를 하지 않는다.
-- 설계/검수 Agent는 read-only, 구현/FIX Agent만 workspace-write/auto-edit 권한을 받는다.
-- 병렬 Stage는 read-only만 허용하며 `min_success` quorum을 설정할 수 있다.
-- 구현 Agent와 REVIEW Agent가 겹치는 계획은 거부한다.
-- 명시적인 `VERDICT: PASS`가 없으면 완료하지 않는다.
-- 결정론적 검사 실패는 LLM REVIEW 전에 차단한다.
-- CLI 인증/쿼터 장애 시 설정된 fallback Agent를 시도하고 모든 실패를 기록한다.
+- AI Worker write는 base/master에서 금지된다.
+- A/B/C task worktree의 local checkpoint commit은 Runner 실행 승인 범위다.
+- A의 base 통합은 사용자 선택 후 Codex만 수행한다. push, force push, reset, branch 삭제는 하지 않는다.
+- 런타임 정본은 `.harness/runs/<TASK-ID>/state.json`이다.
+- `handoff.json`, `events.jsonl`, `outputs/`, A의 `compare.md`와 `selection.json`이 실행 근거를 보존한다.
+- REVIEW는 마지막 비어 있지 않은 줄의 명시적 `VERDICT: PASS|FIX_REQUIRED|BLOCKED`만 인정한다.
 
-## 저장소 문서
+## 주요 문서
 
 - `AGENTS.md`: 공통 권한·Git·보안 규칙
-- `MODES.md`: MODE A(경쟁), B(인계), C(역할 파이프라인) 계약
-- `WORKFLOW.md`: 수동 운영과 자동 Runner 흐름
-- `ENGINEERING_POLICY.md`: 구현 원칙
-- `claude/`, `codex/`, `gemini/`: 모델별 역할 정책
-- `shared/`: 현재 작업 계약·설계·구현·검수·결과
-- `artifacts/`: 채택된 재사용 결과물
-- `demo/orchestrator/`: 표준 라이브러리 기반 자동 Runner
+- `MODES.md`: MODE A/B/C 상태 머신 정본
+- `WORKFLOW.md`: 실제 운영과 CLI 재개 흐름
+- `ENGINEERING_POLICY.md`: 코드 변경 원칙
+- `claude/`, `codex/`, `gemini/`: 모델별 역할
+- `shared/`: 사람이 읽는 현재 TASK 장기 기록
+- `demo/orchestrator/`: 자동 Runner
 
 ## 테스트
 
 ```bash
 python3 -m unittest discover -s demo/orchestrator/tests -p "test_*.py" -v
+git diff --check
 ```
-
-MODE를 명시하지 않은 한 Runner는 자동 완성을 목표로 MODE C를 사용한다. MODE A는 독립 구현 비교와 사용자 선택이 필요한 경우, MODE B는 기존 작업선 인계에 사용한다.

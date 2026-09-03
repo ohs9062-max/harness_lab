@@ -56,7 +56,7 @@ def build_stage_prompt(
 
 1. Read AGENTS.md and relevant repository instructions before acting.
 2. Inspect actual files and Git state; never invent code, paths, commands, or test results.
-3. Preserve existing user changes. Never commit, merge, push, reset, or delete branches.
+3. Preserve existing user changes. Never commit, merge, push, reset, or delete branches; Runner-owned task checkpoints are handled outside your session.
 4. {access_rule}
 5. Keep the final response concise and evidence-based. The runner stores it for the next stage.
 

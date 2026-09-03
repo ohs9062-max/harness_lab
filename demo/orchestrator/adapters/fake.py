@@ -23,6 +23,7 @@ class FakeAgentAdapter(BaseAgentAdapter):
         self.review_sequence = list(review_sequence or [])
         self.create_files = create_files
         self.mock_output = mock_output
+        self.prompts: List[Dict[str, str]] = []
 
     def check_availability(self) -> Tuple[bool, str]:
         return True, "fake adapter"
@@ -37,6 +38,7 @@ class FakeAgentAdapter(BaseAgentAdapter):
         self, prompt: str, cwd: str, stage: str, timeout_sec: int = 600,
         access: str = "READ_ONLY", options: Optional[Dict[str, Any]] = None,
     ) -> AgentExecutionResult:
+        self.prompts.append({"prompt": prompt, "cwd": cwd, "stage": stage, "access": access})
         if not self.force_success:
             return AgentExecutionResult(
                 agent=self.name, stage=stage, success=False, exit_code=self.exit_code,
@@ -54,8 +56,9 @@ class FakeAgentAdapter(BaseAgentAdapter):
         if stage.upper() == "REVIEW":
             verdict = self.review_sequence.pop(0) if self.review_sequence else self.review_verdict
         verdict_line = f"\nVERDICT: {verdict}" if verdict else ""
+        response = "ACCEPT" if stage.upper() == "RESPONSE" else ""
         return AgentExecutionResult(
             agent=self.name, stage=stage, success=True, exit_code=0,
-            stdout=f"{self.name} completed {stage}. {self.mock_output}{verdict_line}",
+            stdout=f"{self.name} completed {stage}. {self.mock_output}{response}{verdict_line}",
             review_verdict=verdict, changed_files=changed, duration_sec=0.01,
         )

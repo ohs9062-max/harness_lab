@@ -126,8 +126,9 @@ USER_SELECT
     REWORK
     CANCEL
   ↓
-MERGE (사용자 선택에 따라)
-  선택된 결과를 base branch에 통합
+CODEX_MERGE (사용자 선택에 따라)
+  Codex가 선택된 결과만 base working tree에 통합
+  CHECK 실행, push/commit 없음
   ↓
 FINAL
 ```
@@ -172,6 +173,8 @@ Research A:
 - base/master working tree는 AI 작업 장소가 아니다.
 - Worker는 반드시 독립 worktree에서 작업한다.
 - 사용자 merge 승인 전: merge, cherry-pick, 수동 파일 복사 통합, push 금지
+- local worker checkpoint는 MODE A 실행 승인 범위이며 사용자 선택 승인이 아니다.
+- 사용자 선택 후 최종 통합 담당은 항상 Codex다.
 
 ---
 
@@ -228,10 +231,15 @@ CONTINUE
 - 이어받는 AI는 자기 기본 강점을 이유로 다른 Stage에서 시작하지 않는다.
 - 완료됐다고 기록된 작업을 처음부터 다시 하지 않는다.
 - 자신이 구현에 참여했다면 같은 결과의 독립 검수자로 기록하지 않는다.
+- Runner는 `--mode B --resume <TASK-ID> --relay-agent <AI> --execute`로 state를 복구한다.
+- 기록된 branch/worktree/checkpoint와 실제 `git status`, `git log`, `git diff`가 다르면 Git을 정본으로 사용하고 차이를 runtime event에 남긴다.
 
 ---
 
 ## MODE C — ROLE PIPELINE
+
+MODE C Runner는 `task/<TASK-ID>/pipeline` branch와 하나의 pipeline worktree를 만든다.
+Claude, Codex, Gemini는 그 worktree를 순서대로 사용하며 base/master에 Worker write를 하지 않는다.
 
 ### 기본 역할 배치
 
@@ -280,6 +288,8 @@ FINAL
   - Gemini가 다시 REVIEW
   - PASS될 때까지 반복 (무한 반복은 사용자가 판단)
 - 구현에 참여한 AI는 같은 결과의 독립 REVIEW를 겸하지 않는다
+- FIX 기본 담당은 Codex다. IMPLEMENT가 fallback Agent로 실제 완료된 경우에는 그 실제 writer가 FIX를 이어받고, reviewer는 계속 분리한다.
+- 성공한 pipeline 결과는 task branch에 local checkpoint commit으로 보존한다. base 통합과 push는 별도다.
 
 ---
 
@@ -398,8 +408,9 @@ Research A도 동일한 독립 → Cross Verification → Compare 흐름을 따�
 
 현재 상태:
 - Protocol: 이 문서와 `AGENTS.md`, `WORKFLOW.md`가 정본이다.
-- Runner: `demo/orchestrator`가 MODE C의 계획, 실제 CLI 호출, read-only 병렬 fan-out, handoff, CHECK, REVIEW/FIX, FINAL Gate를 자동 실행한다.
-- MODE A: 독립 worktree 경쟁과 사용자 선택/merge Gate 때문에 수동 Coordinator 계약을 유지한다.
-- MODE B: `shared/context.md` 기반 인계 계약을 유지하며 자동 Runner 재개(resume)는 아직 지원하지 않는다.
+- Runner: `demo/orchestrator`가 MODE A/B/C를 실행한다.
+- MODE A: 두 독립 worktree, required Worker Gate, checkpoint, Cross Review, Response, Compare, WAITING_USER와 Codex 통합을 지원한다.
+- MODE B: 기존 TASK-ID state와 worktree를 로드해 실제 Git을 대조하고 남은 Stage부터 relay한다.
+- MODE C: 하나의 pipeline worktree에서 DESIGN→IMPLEMENT/CHECK→REVIEW/FIX→FINAL과 checkpoint를 실행한다.
 
 Runner의 런타임 기록은 `.harness/runs/<TASK-ID>/`에 저장한다. 문서 상태와 실제 `state.json`, Git diff가 다르면 실제 상태를 정본으로 삼는다.

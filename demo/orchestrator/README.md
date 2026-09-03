@@ -1,61 +1,72 @@
-# Harness Lab Automatic Runner
+# Harness Lab V3 Runner
 
-Python 표준 라이브러리만으로 실제 `claude`, `codex`, `gemini` CLI를 비대화형 실행한다. 자연어 요청 하나를 계획하고, 역할별 권한으로 실행하고, 산출물을 다음 Stage에 넘긴 뒤 테스트와 독립 검수/FIX 루프를 통과시킨다.
-
-## 모듈
-
-- `cli.py`: `--repo`, dry-run/execute, doctor, timeout, check 옵션
-- `coordinator.py`: AI JSON 계획 또는 deterministic 역할 라우팅
-- `models.py`: Stage/Plan/State 검증, read/write/system 권한, quorum, self-review 방지
-- `engine.py`: Agent 실행, fallback, handoff, CHECK, REVIEW/FIX, FINAL Gate
-- `checks.py`: Python/package.json 기반 검사 발견 및 shell 없는 실행
-- `git_state.py`: read-only Git Preflight와 실행 중 변경 파일 추적
-- `prompt_builder.py`: 역할별 지시와 크기 제한 inline handoff
-- `state.py`: atomic state, masked output, handoff, JSONL audit event
-- `adapters/`: Claude/Codex/Gemini 최소권한 CLI와 deterministic fake
+Python 표준 라이브러리로 Claude/Codex/Gemini CLI와 Git worktree를 실행한다.
+최상위 `--mode A|B|C`는 Harness Protocol이고 Stage의 `PIPELINE|PARALLEL`과 별개다.
 
 ## CLI
 
 ```bash
 python3 -m demo.orchestrator --doctor
-python3 -m demo.orchestrator "목표" --dry-run
-python3 -m demo.orchestrator "목표" --execute
-python3 -m demo.orchestrator "목표" --execute --deterministic-plan
-python3 -m demo.orchestrator "목표" --execute --repo /path/to/repo \
-  --check "python3 -m pytest -q" --max-review-cycles 2
+python3 -m demo.orchestrator "목표" --mode A --execute
+python3 -m demo.orchestrator --mode A --resume TASK-ID --selection SELECT_CODEX --execute
+python3 -m demo.orchestrator --mode A --resume TASK-ID --selection SELECT_HYBRID \
+  --instruction "사용자 통합 기준" --execute
+python3 -m demo.orchestrator --mode B --resume TASK-ID --relay-agent gemini --execute
+python3 -m demo.orchestrator "목표" --mode C --execute
 ```
 
-기본값은 안전한 dry-run이다. 실제 호출은 `--execute`가 있어야 한다. `--deterministic-plan`은 Coordinator 모델 호출 없이 요청 키워드로 RESEARCH/DEVELOPMENT/MIXED를 분류하고 기본 MODE C 역할을 배치한다.
+선택 값은 `SELECT_CODEX`, `SELECT_GEMINI`, `SELECT_HYBRID`, `REWORK`, `CANCEL`이다.
+새 실행은 request가 필요하고 resume은 기존 TASK-ID가 필요하다. MODE 미지정 시 C다.
 
-## 권한과 실패 처리
+## 실행 구조
 
-| 역할 | Claude | Codex | Gemini |
-|---|---|---|---|
-| read-only | `--permission-mode plan` | `--sandbox read-only` | `--approval-mode plan` |
-| write | `--permission-mode acceptEdits` | `--approve-for-me` | `--approval-mode auto_edit` |
+- `engine.py`: MODE dispatch, Stage 실행, A 경쟁/선택, B relay, C REVIEW/FIX
+- `worktree.py`: task worktree 생성, 등록 경로 검증, local checkpoint, diff
+- `git_state.py`: repository/root/branch/HEAD/dirty/worktree Preflight와 B Git 근거
+- `coordinator.py`: 명시 MODE 보존과 A/C plan 생성; B는 새 plan을 만들지 않음
+- `state.py`: `.harness/runs/<TASK-ID>/` atomic state/handoff/event/output
+- `checks.py`: shell 없는 argv 기반 test/lint/typecheck/build
+- `prompt_builder.py`: 최소권한 역할 prompt와 bounded handoff
+- `adapters/`: Claude plan/acceptEdits, Codex read-only/approve-for-me,
+  Gemini plan/auto_edit, deterministic fake
 
-위험한 bypass/yolo 플래그는 사용하지 않는다. CLI 미인증·timeout·쿼터 실패는 해당 결과 파일에 남고 fallback이 있으면 다음 후보를 실행한다. 필수 성공 수(`min_success`)를 못 채우면 이후 Stage는 시작하지 않는다.
-
-## 런 기록
+## Worktree와 checkpoint
 
 ```text
-.harness/runs/<TASK-ID>/
-├── state.json
-├── handoff.json
-├── events.jsonl
-└── outputs/
-    ├── 001-DESIGN/claude.md
-    ├── 002-IMPLEMENT/codex.md
-    └── 003-REVIEW/gemini.md
+.harness/worktrees/<TASK-ID>/
+├── codex/       # MODE A
+├── gemini/      # MODE A
+└── pipeline/    # MODE C; MODE B가 이어받을 수 있음
 ```
 
-`.harness/`는 Git에서 제외한다. 일부 CLI가 ignored 파일 읽기를 막기 때문에 Runner는 선행 성공 결과의 최대 60,000자 excerpt와 CHECK 요약을 후속 prompt에 직접 포함한다.
+A Worker와 C pipeline은 동일 frozen base commit에서 task branch를 만든다. MODE B는
+state에 기록된 등록 worktree를 그대로 쓴다. Worker write를 base에서 시도하면 차단한다.
+Runner는 task branch checkpoint만 commit한다. A의 명시적 선택 이후 Codex integration만
+base working tree에 쓸 수 있고, 그 결과도 자동 commit/push하지 않는다.
 
-## 완료 조건
+## MODE A Gate
 
-- 필수 Agent/quorum 성공
-- write Stage에서 실제 repository 변경 발생
-- 발견되거나 지정된 결정론적 검사 성공(없으면 `WAIVED`로 명시)
-- 독립 reviewer의 단일 명시 verdict `PASS`
-- 지정된 output artifact가 있다면 파일 존재와 비어 있지 않음 확인
-- Runner가 Git commit을 만들지 않았음
+두 required Worker 각각에 대해 write 결과, 결정론적 check, checkpoint가 모두 필요하다.
+한쪽이 실패하면 fallback 없이 `BLOCKED`이고 Cross Review 이후 단계는 실행하지 않는다.
+두 Worker 완료 전 prompt에 상대 branch/diff/output/test를 넣지 않는다. 완료 후에는 양방향
+Cross Review, Response 1회, runtime Compare를 거쳐 `WAITING_USER`가 된다.
+
+## MODE B Gate
+
+`load_state()`로 worktree/current-stage를 복구하고 실제 `git status`, `git log`, `git diff`를
+확인한다. 기록과 다르면 Git을 사용하고 `git_discrepancies`와 event에 기록한다. relay Agent는
+첫 미완료 AI Stage부터 계속하며 이후 CHECK/REVIEW/FINAL도 같은 worktree에서 수행한다.
+
+## MODE C Gate
+
+Claude DESIGN → Codex IMPLEMENT → CHECK → Gemini REVIEW를 pipeline worktree에서 실행한다.
+명시적 PASS만 FINAL로 진행한다. FIX_REQUIRED면 writer FIX → CHECK → fresh REVIEW를 반복하고,
+성공하면 pipeline checkpoint를 남긴다.
+
+## 검증
+
+```bash
+python3 -m unittest discover -s demo/orchestrator/tests -p "test_*.py" -v
+```
+
+테스트에서는 `--fake-agents`와 임시 Git 저장소를 사용하므로 외부 AI 토큰을 소비하지 않는다.

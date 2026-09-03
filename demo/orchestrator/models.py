@@ -213,6 +213,22 @@ class RuntimeState:
     review_cycles: int = 0
     final_artifact: Optional[str] = None
     blocker: Optional[str] = None
+    mode: str = "C"
+    base_branch: str = ""
+    worktrees: Dict[str, str] = field(default_factory=dict)
+    worker_branches: Dict[str, str] = field(default_factory=dict)
+    checkpoints: Dict[str, str] = field(default_factory=dict)
+    worker_status: Dict[str, str] = field(default_factory=dict)
+    worker_tests: Dict[str, List[Dict[str, Any]]] = field(default_factory=dict)
+    cross_reviews: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    responses: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    compare_path: Optional[str] = None
+    user_selection: Optional[str] = None
+    merge_status: str = "PENDING"
+    active_worktree: Optional[str] = None
+    active_branch: Optional[str] = None
+    relay: Dict[str, Any] = field(default_factory=dict)
+    git_discrepancies: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

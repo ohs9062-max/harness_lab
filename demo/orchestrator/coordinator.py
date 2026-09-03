@@ -13,7 +13,8 @@ from demo.orchestrator.models import AccessMode, ExecutionMode, StageConfig, Tas
 
 class Coordinator:
     COORDINATOR_PROMPT = """You are the Harness Lab coordinator. Return only one JSON object.
-Build the smallest safe MODE C plan that completes the request using installed Claude, Codex, and Gemini CLIs.
+Build the smallest safe plan for the REQUIRED TOP-LEVEL MODE supplied below.
+Never change MODE A/B/C. PIPELINE and PARALLEL are only stage execution strategies.
 Separate creators from reviewers. Deterministic CHECK must occur immediately before REVIEW.
 Allowed stage names: ANALYZE, RESEARCH, DESIGN, IMPLEMENT, SYNTHESIZE, CHECK, REVIEW, FINAL.
 Allowed agents: claude, codex, gemini, system. Parallel stages MUST be READ_ONLY.
@@ -24,7 +25,7 @@ Do not include shell commands. For code work output_artifact may be an empty str
 Schema:
 {
   "task_type": "RESEARCH|DEVELOPMENT|MIXED",
-  "mode": "C",
+  "mode": "A|C",
   "output_artifact": "relative/path/or/empty",
   "goal": "string",
   "scope": "string",
@@ -58,7 +59,14 @@ Schema:
             min_success=min_success,
         )
 
-    def create_deterministic_plan(self, task_id: str, user_request: str) -> TaskPlan:
+    def create_deterministic_plan(
+        self, task_id: str, user_request: str, mode: str = "C",
+    ) -> TaskPlan:
+        mode = mode.upper()
+        if mode == "B":
+            raise ValueError("MODE B resumes an existing TASK-ID and cannot create a new plan")
+        if mode not in {"A", "C"}:
+            raise ValueError(f"Invalid mode: {mode}")
         lowered = user_request.lower()
         research = any(word in lowered for word in ("조사", "분석", "비교", "리서치", "research", "analyze", "compare"))
         development = any(word in lowered for word in (
@@ -69,7 +77,14 @@ Schema:
         write = AccessMode.WRITE.value
         system = AccessMode.SYSTEM.value
 
-        if task_type == TaskType.RESEARCH:
+        if mode == "A":
+            output = ""
+            stages = [
+                self._stage("IMPLEMENT", ["codex"], write, "independent worker"),
+                self._stage("CHECK", ["system"], system, "worker gate"),
+                self._stage("FINAL", ["system"], system, "selection completion gate"),
+            ]
+        elif task_type == TaskType.RESEARCH:
             output = f"artifacts/{task_id}/result.md"
             stages = [
                 self._stage("RESEARCH", ["claude", "codex", "gemini"], read, "independent researcher", "PARALLEL", min_success=2),
@@ -98,7 +113,7 @@ Schema:
         plan = TaskPlan(
             task_id=task_id,
             task_type=task_type.value,
-            mode="C",
+            mode=mode,
             output_artifact=output,
             goal=user_request,
             scope="Only the requested repository and goal",
@@ -119,14 +134,17 @@ Schema:
 
     def generate_plan(
         self, user_request: str, task_id: Optional[str] = None,
-        use_fake: bool = False, use_deterministic: bool = False,
+        use_fake: bool = False, use_deterministic: bool = False, mode: str = "C",
     ) -> TaskPlan:
         task_id = task_id or f"TASK-{datetime.now().strftime('%Y-%m-%d-%H%M%S')}"
-        if use_fake or use_deterministic:
-            return self.create_deterministic_plan(task_id, user_request)
+        mode = mode.upper()
+        if mode == "B":
+            raise ValueError("MODE B requires --resume with an existing TASK-ID")
+        if use_fake or use_deterministic or mode == "A":
+            return self.create_deterministic_plan(task_id, user_request, mode=mode)
 
         result = get_adapter("codex").run(
-            prompt=f"{self.COORDINATOR_PROMPT}\n\nUSER REQUEST:\n{user_request}",
+            prompt=f"{self.COORDINATOR_PROMPT}\n\nREQUIRED TOP-LEVEL MODE: {mode}\n\nUSER REQUEST:\n{user_request}",
             cwd=self.repo_root,
             stage="COORDINATOR",
             timeout_sec=180,
@@ -136,6 +154,7 @@ Schema:
             raise RuntimeError(f"Coordinator failed: {result.error_message}")
         data = self._parse_json_safely(result.stdout)
         data["task_id"] = task_id
+        data["mode"] = mode
         plan = TaskPlan.from_dict(data)
         plan.validate()
         return plan

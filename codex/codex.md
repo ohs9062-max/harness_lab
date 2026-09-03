@@ -28,6 +28,9 @@
   - checkpoint를 확보한다.
   - Cross Review에서 상대 결과를 검토하고 finding을 기록한다.
   - 상대 finding에 ACCEPT / REJECT / PARTIAL / NEEDS_TEST로 답변한다.
+  - 사용자 선택 후 최종 통합은 Codex가 담당하며 선택되지 않은 안을 임의로 채택하지 않는다.
+  - SELECT_GEMINI는 Gemini checkpoint를, SELECT_HYBRID는 두 checkpoint와 사용자 지시를 기준으로 통합한다.
+  - 통합 후 CHECK와 FINAL까지만 수행하고 push하지 않는다.
 
 ### MODE B (Relay)
 
@@ -41,7 +44,8 @@
 - DESIGN과 결정, 입력 artifact와 실제 코드를 대조해 필요한 범위만 수정한다.
 - 자체 테스트는 구현 확인이지 독립 최종 REVIEW가 아니다.
 - 결과는 `shared/IMPLEMENTATION.md`에 branch, commit, 변경 파일과 검증 결과를 기록한다.
-- 자동 Runner에서는 workspace-write 구현자이며, commit 없이 실제 diff를 남긴 뒤 결정론적 CHECK에 넘긴다.
+- 자동 Runner에서는 pipeline worktree의 workspace-write 구현자이며 실제 diff를 결정론적 CHECK에 넘긴다.
+- 성공 결과의 local task checkpoint는 Runner가 만들며 base/master에는 직접 쓰지 않는다.
 
 ## 공통
 

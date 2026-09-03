@@ -67,7 +67,9 @@ class TestEngineWorkflows(unittest.TestCase):
         self.assertGreaterEqual(len(handoff["outputs"]), 3)
         self.assertEqual(subprocess.run(
             ["git", "rev-parse", "HEAD"], cwd=self.repo_root, capture_output=True, text=True, check=True,
-        ).stdout.strip(), self.initial_head, "runner must not auto-commit")
+        ).stdout.strip(), self.initial_head, "base branch must remain unchanged")
+        self.assertNotEqual(state.checkpoints["pipeline"], self.initial_head)
+        self.assertNotEqual(Path(state.active_worktree), self.repo_root)
 
     def test_required_agent_failure_blocks_pipeline(self):
         state = self.engine(fake_options={"force_success": False}).run_plan(
@@ -142,7 +144,7 @@ class TestEngineWorkflows(unittest.TestCase):
         )
         self.assertEqual(state.status, "DONE")
         self.assertEqual(state.review_cycles, 1)
-        self.assertTrue((self.repo_root / "fake-fix.txt").exists())
+        self.assertTrue((Path(state.active_worktree) / "fake-fix.txt").exists())
 
     def test_fix_uses_the_actual_fallback_implementer(self):
         plan = self.plan("TASK-ACTUAL-FIXER")
@@ -159,7 +161,7 @@ class TestEngineWorkflows(unittest.TestCase):
         engine._get_adapter = adapter
         state = engine.run_plan(plan, "implement", dry_run=False, execute=True)
         self.assertEqual(state.status, "DONE")
-        self.assertEqual((self.repo_root / "fake-fix.txt").read_text(), "claude completed FIX\n")
+        self.assertEqual((Path(state.active_worktree) / "fake-fix.txt").read_text(), "claude completed FIX\n")
 
     def test_repeated_fix_required_hits_cycle_limit(self):
         state = self.engine(

@@ -38,7 +38,8 @@ AI가 MODE를 임의로 변경하거나 생략하지 않는다.
 - 명시적인 REVIEW 판정이 없거나 서로 모순되면 `BLOCKED`다.
 - CLI 장애 fallback과 병렬 quorum은 계획에 명시된 범위에서만 허용한다.
 - 런타임 정본은 `.harness/runs/<TASK-ID>/state.json`, 인계는 `handoff.json`, 감사 기록은 `events.jsonl`이다.
-- Runner는 자동 commit, merge, push를 수행하지 않는다.
+- Runner는 task worktree 안의 local checkpoint commit만 자동 생성할 수 있다.
+- MODE A의 base 통합은 `WAITING_USER` 이후 사용자 선택을 받은 Codex만 수행하며 push는 하지 않는다.
 
 ## 3. 작업 시작 절차
 
@@ -81,7 +82,9 @@ AI가 MODE를 임의로 변경하거나 생략하지 않는다.
 
 5개 이상의 파일을 수정해야 하는 작업이라면 현재 Git 상태를 먼저 확인한다.
 
-필요하면 checkpoint 생성을 제안하되 사용자의 지시 없이 임의로 commit하지 않는다.
+일반 작업에서는 checkpoint 생성을 제안하되 사용자의 지시 없이 임의로 commit하지 않는다.
+단, MODE A/B/C Runner 실행 승인은 task worktree 내부 local checkpoint commit 권한을 포함한다.
+이 예외는 base merge나 push 권한을 포함하지 않는다.
 
 커밋 메시지 형식:
 
@@ -100,12 +103,13 @@ AI가 MODE를 임의로 변경하거나 생략하지 않는다.
 Git repository가 아닌 대상에 대해 사용자가 "직접 수정 허용"을 명시하지 않았다면
 직접 수정하지 않고 `BLOCKED` 상태로 사용자 판단을 요청한다.
 
-### base 보호 (MODE A)
+### base 보호 (MODE A/B/C)
 
-MODE A에서 base/master working tree는 AI 작업 장소가 아니다.
-Worker는 반드시 독립 worktree에서 작업한다.
+MODE A Worker는 Codex/Gemini 독립 worktree, MODE B는 기존 task worktree,
+MODE C는 pipeline worktree에서 작업한다. base/master는 Worker write 장소가 아니다.
 
-사용자 merge 승인 전: merge, cherry-pick, 수동 파일 복사 통합, push 금지.
+MODE A 사용자 선택 전 통합 금지. 선택 후 `CODEX_MERGE`만 base에 쓸 수 있다.
+push, force push, reset, branch 삭제는 계속 금지한다.
 
 ## 6. 구현 규칙
 

@@ -17,7 +17,7 @@ MODE별 실행 계약은 `MODES.md`, 공통 규칙은 `AGENTS.md`, 코드 원칙
 → TASK-ID 생성
 → Git Preflight (MODES.md 공통 Gate)
 → shared/TASK.md에 계약 기록
-→ 수동 MODE는 Worker 실행 안내 / 자동 MODE C는 Runner가 Worker CLI 실행
+→ 자동 Runner가 선택된 MODE A/B/C 계약 실행
 ```
 
 Entry AI는 Worker를 자동으로 겸하지 않는다.
@@ -35,7 +35,7 @@ Entry AI는 Worker를 자동으로 겸하지 않는다.
 ### 작업 주기
 
 1. 이전 TASK가 종료되고 Git에 보존됐는지 확인한다.
-2. 보존되지 않았다면 checkpoint를 제안하되 승인 없이 commit하지 않는다.
+2. 일반 수동 작업은 checkpoint를 제안하고, Runner task worktree는 실행 승인 범위에서 local checkpoint를 만든다.
 3. 새 TASK-ID로 필요한 shared 문서를 초기화한다.
 4. TASK에 MODE, TASK-ID, 입출력과 완료 조건을 기록한다.
 5. RELAY 때 context를 최신 상태로 갱신한다.
@@ -88,7 +88,8 @@ DEFINE (Entry AI)
 → Compare 보고서 작성
 → WAITING_USER
 → 사용자 선택 (SELECT_CODEX / SELECT_GEMINI / SELECT_HYBRID / REWORK / CANCEL)
-→ Merge (선택에 따라)
+→ Codex Merge (선택된 결과만 local base에 통합)
+→ CHECK
 → FINAL
 ```
 
@@ -119,7 +120,7 @@ DEFINE (Entry AI)
 
 ## 4. MODE B 운영 흐름
 
-```
+```text
 (기존 작업 중)
 → RELAY 발생 (토큰/세션/장애/사용자)
 → 넘겨주는 AI: shared/context.md 갱신
@@ -131,6 +132,16 @@ DEFINE (Entry AI)
   5. 인계된 Stage와 역할을 유지하고 남은 작업부터 계속
 ```
 
+자동 재개:
+
+```bash
+python3 -m demo.orchestrator --repo /path/to/repo --mode B \
+  --resume TASK-ID --relay-agent gemini --execute
+```
+
+Runner는 새 worktree를 만들지 않고 state의 기존 worktree에서 `git status`, `git log`,
+`git diff`를 다시 확인한다. 불일치는 event/state에 기록하고 실제 Git 기준으로 계속한다.
+
 ---
 
 ## 5. MODE C 운영 흐름
@@ -138,6 +149,7 @@ DEFINE (Entry AI)
 ```
 DEFINE (Entry AI)
 → Git Preflight
+→ pipeline worktree 생성 (`task/<TASK-ID>/pipeline`)
 → Claude: ANALYZE / DESIGN → shared/DESIGN.md
 → Codex: IMPLEMENT / TEST → shared/IMPLEMENTATION.md
 → Gemini: REVIEW → shared/REVIEW.md
@@ -161,7 +173,7 @@ Runner는 다음 Gate를 추가로 강제한다.
 3. 테스트·lint·typecheck·build를 안전하게 발견해 REVIEW보다 먼저 실행한다. 검사 없음은 PASS가 아니라 `WAIVED`로 기록한다.
 4. REVIEW는 명시적인 `VERDICT: PASS | FIX_REQUIRED | BLOCKED`만 인정한다.
 5. FIX_REQUIRED면 구현 Agent가 수정하고 CHECK와 독립 REVIEW를 새로 실행한다.
-6. Runner는 commit, merge, push를 수행하지 않는다.
+6. Runner는 pipeline task branch의 local checkpoint만 만들며 base merge와 push는 수행하지 않는다.
 
 역할은 기본 배치이며 사용자가 교체를 지시하면 변경한다.
 구현에 참여한 AI는 같은 결과의 독립 REVIEW를 겸하지 않는다.
@@ -225,7 +237,7 @@ Runner는 다음 Gate를 추가로 강제한다.
 
 ## 7. Worktree와 Checkpoint
 
-### Worktree (MODE A)
+### Worktree (MODE A/B/C)
 
 MODE A에서 독립 작업을 위해 worktree를 생성한다.
 
@@ -238,11 +250,15 @@ base/
 두 Worker는 같은 base commit에서 시작한다.
 base/master에 직접 코드를 쓰지 않는다.
 
+- MODE B: state에 기록된 기존 task worktree를 그대로 사용한다.
+- MODE C: `task/<TASK-ID>/pipeline` worktree 하나를 모든 역할이 순차 사용한다.
+- MODE A 사용자 선택 후 `CODEX_MERGE`만 base working tree 통합 권한을 가진다.
+
 ### Checkpoint
 
-checkpoint commit은 AI 간 인계·비교·검수용 로컬 스냅샷이다.
-push나 master merge가 아니다.
-commit·push·merge는 사용자 승인 정책을 따른다.
+checkpoint commit은 AI 간 인계·비교·검수용 task branch 로컬 스냅샷이다.
+MODE A/B/C Runner 실행 승인은 task worktree checkpoint를 포함하지만 push나 base 통합 승인은 아니다.
+MODE A base 통합은 사용자 선택 후 Codex가 수행하고 push는 별도 승인이다.
 
 다른 worktree는 merge-base와 triple-dot diff로 실제 작업 변경을 검수한다.
 

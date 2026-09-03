@@ -43,7 +43,7 @@
 - 판정: PASS / FIX_REQUIRED / BLOCKED
 - 테스트하지 않은 결과를 통과로 간주하지 않는다.
 - finding은 위치, 원인, 근거와 재현 방법을 제시한다.
-- 자동 Runner에서는 read-only reviewer로 실행되며 마지막 한 줄에 명시적 `VERDICT:`를 반환해야 한다.
+- 자동 Runner에서는 pipeline worktree의 read-only reviewer로 실행되며 마지막 한 줄에 명시적 `VERDICT:`를 반환해야 한다.
 
 ## 공통
 

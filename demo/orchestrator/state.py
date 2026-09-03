@@ -19,6 +19,7 @@ SENSITIVE_PATTERNS = [
     re.compile(r"\b(sk-[A-Za-z0-9_-]{12,}|ghp_[A-Za-z0-9]{12,}|xox[baprs]-[A-Za-z0-9-]{10,})\b"),
 ]
 SENSITIVE_KEY = re.compile(r"(?i)(api[_-]?key|secret|token|password|authorization)")
+SAFE_TASK_ID = re.compile(r"^[A-Za-z0-9._-]+$")
 
 
 def mask_sensitive_data(text: str) -> str:
@@ -53,7 +54,10 @@ class StateManager:
         self.max_log_chars = max_log_chars
 
     def get_task_dir(self, task_id: str) -> Path:
-        task_dir = self.runs_root / task_id
+        if not SAFE_TASK_ID.fullmatch(task_id):
+            raise ValueError(f"Unsafe TASK-ID for runtime path: {task_id}")
+        task_dir = (self.runs_root / task_id).resolve()
+        task_dir.relative_to(self.runs_root.resolve())
         task_dir.mkdir(parents=True, exist_ok=True)
         return task_dir
 
@@ -128,6 +132,32 @@ class StateManager:
             "changed_files": state.changed_files,
             "review_cycles": state.review_cycles,
             "blocker": state.blocker,
+            "mode": state.mode,
+            "worktrees": state.worktrees,
+            "worker_branches": state.worker_branches,
+            "checkpoints": state.checkpoints,
+            "worker_status": state.worker_status,
+            "cross_reviews": state.cross_reviews,
+            "responses": state.responses,
+            "compare_path": state.compare_path,
+            "user_selection": state.user_selection,
+            "merge_status": state.merge_status,
+            "active_worktree": state.active_worktree,
+            "active_branch": state.active_branch,
+            "relay": state.relay,
+            "git_discrepancies": state.git_discrepancies,
         }
         self._atomic_json(path, mask_sensitive_value(data))
+        return path
+
+    def write_runtime_markdown(self, task_id: str, relative_path: str, content: str) -> Path:
+        path = (self.get_task_dir(task_id) / relative_path).resolve()
+        path.relative_to(self.get_task_dir(task_id).resolve())
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(mask_sensitive_data(content), encoding="utf-8")
+        return path
+
+    def write_selection(self, task_id: str, selection: Dict[str, Any]) -> Path:
+        path = self.get_task_dir(task_id) / "selection.json"
+        self._atomic_json(path, mask_sensitive_value(selection))
         return path

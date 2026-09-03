@@ -17,6 +17,7 @@ class GitPreflight:
     head: str
     dirty: bool
     status: List[str]
+    worktrees: List[Dict[str, str]]
 
 
 class GitInspector:
@@ -36,7 +37,25 @@ class GitInspector:
         branch = self._git("branch", "--show-current").stdout.strip() or "DETACHED"
         head = self._git("rev-parse", "HEAD").stdout.strip()
         lines = [line for line in self._git("status", "--porcelain=v1").stdout.splitlines() if line]
-        return GitPreflight(root=root, branch=branch, head=head, dirty=bool(lines), status=lines)
+        return GitPreflight(
+            root=root, branch=branch, head=head, dirty=bool(lines), status=lines,
+            worktrees=self.list_worktrees(),
+        )
+
+    def list_worktrees(self) -> List[Dict[str, str]]:
+        records: List[Dict[str, str]] = []
+        current: Dict[str, str] = {}
+        for line in self._git("worktree", "list", "--porcelain").stdout.splitlines():
+            if not line:
+                if current:
+                    records.append(current)
+                    current = {}
+                continue
+            key, _, value = line.partition(" ")
+            current[key] = value
+        if current:
+            records.append(current)
+        return records
 
     def snapshot(self) -> Dict[str, str]:
         """Hash tracked diffs and untracked file contents without mutating Git."""
@@ -79,3 +98,15 @@ class GitInspector:
 
     def changed_files(self) -> List[str]:
         return sorted(self.snapshot())
+
+    def relay_evidence(self) -> Dict[str, object]:
+        """Return the real Git facts a MODE B receiver must inspect."""
+        preflight = self.preflight()
+        return {
+            "branch": preflight.branch,
+            "head": preflight.head,
+            "status": preflight.status,
+            "recent_log": self._git("log", "--oneline", "-5").stdout.splitlines(),
+            "diff_stat": self._git("diff", "--stat").stdout.splitlines(),
+            "changed_files": self.changed_files(),
+        }
