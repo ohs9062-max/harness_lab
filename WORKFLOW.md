@@ -152,9 +152,10 @@ DEFINE (Entry AI)
 → pipeline worktree 생성 (`task/<TASK-ID>/pipeline`)
 → Claude: ANALYZE / DESIGN → shared/DESIGN.md
 → Codex: IMPLEMENT / TEST → shared/IMPLEMENTATION.md
+→ System: deterministic CHECK
 → Gemini: REVIEW → shared/REVIEW.md
   ├─ PASS → FINAL
-  ├─ FIX_REQUIRED → Codex FIX → TEST → Gemini REVIEW
+  ├─ FIX_REQUIRED → Codex FIX → TEST → CHECK → Gemini REVIEW
   └─ BLOCKED → 사용자 판단
 → FINAL
 ```
@@ -172,7 +173,7 @@ Runner는 다음 Gate를 추가로 강제한다.
 2. 각 Agent의 출력은 `.harness/runs/<TASK-ID>/outputs/`에 저장하고 `handoff.json`과 inline excerpt로 다음 Stage에 전달한다.
 3. 테스트·lint·typecheck·build를 안전하게 발견해 REVIEW보다 먼저 실행한다. 검사 없음은 PASS가 아니라 `WAIVED`로 기록한다.
 4. REVIEW는 명시적인 `VERDICT: PASS | FIX_REQUIRED | BLOCKED`만 인정한다.
-5. FIX_REQUIRED면 구현 Agent가 수정하고 CHECK와 독립 REVIEW를 새로 실행한다.
+5. FIX_REQUIRED면 구현 Agent가 수정하고 TEST, CHECK와 독립 REVIEW를 새로 실행한다.
 6. Runner는 pipeline task branch의 local checkpoint만 만들며 base merge와 push는 수행하지 않는다.
 
 역할은 기본 배치이며 사용자가 교체를 지시하면 변경한다.

@@ -16,10 +16,10 @@ class Coordinator:
 Build the smallest safe plan for the REQUIRED TOP-LEVEL MODE supplied below.
 Never change MODE A/B/C. PIPELINE and PARALLEL are only stage execution strategies.
 Separate creators from reviewers. Deterministic CHECK must occur immediately before REVIEW.
-Allowed stage names: ANALYZE, RESEARCH, DESIGN, IMPLEMENT, SYNTHESIZE, CHECK, REVIEW, FINAL.
+Allowed stage names: ANALYZE, RESEARCH, DESIGN, IMPLEMENT, SYNTHESIZE, TEST, CHECK, REVIEW, FINAL.
 Allowed agents: claude, codex, gemini, system. Parallel stages MUST be READ_ONLY.
-IMPLEMENT and SYNTHESIZE use WRITE. CHECK and FINAL use SYSTEM. REVIEW uses READ_ONLY.
-Use Claude primarily for analysis/design/synthesis, Codex for implementation, Gemini for adversarial review.
+IMPLEMENT and SYNTHESIZE use WRITE. TEST uses READ_ONLY. CHECK and FINAL use SYSTEM. REVIEW uses READ_ONLY.
+Use Claude primarily for analysis/design/synthesis, Codex for implementation/testing, Gemini for adversarial review.
 Do not include shell commands. For code work output_artifact may be an empty string; code changes are the result.
 
 Schema:
@@ -102,6 +102,7 @@ Schema:
                 self._stage(first_name, first_agents, read, "planner", first_execution, min_success=1),
                 self._stage("DESIGN", ["claude"], read, "architect", fallback_agents=["gemini"]) if first_name != "DESIGN" else None,
                 self._stage("IMPLEMENT", ["codex"], write, "implementer", fallback_agents=["claude"]),
+                self._stage("TEST", ["codex"], read, "implementation tester"),
                 self._stage("CHECK", ["system"], system, "deterministic verifier"),
                 self._stage("REVIEW", ["gemini"], read, "independent reviewer"),
                 self._stage("FINAL", ["system"], system, "completion gate"),

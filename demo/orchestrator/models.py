@@ -83,8 +83,10 @@ class StageConfig:
             raise ValueError(f"Invalid min_success for stage '{self.name}': {self.min_success}")
         if name in WRITE_STAGES and self.access.upper() != AccessMode.WRITE.value:
             raise ValueError(f"Stage '{name}' must use WRITE access")
-        if name in {"CHECK", "TEST", "FINAL"} and self.access.upper() != AccessMode.SYSTEM.value:
+        if name in {"CHECK", "FINAL"} and self.access.upper() != AccessMode.SYSTEM.value:
             raise ValueError(f"Stage '{name}' must use SYSTEM access")
+        if name == "TEST" and self.access.upper() not in {AccessMode.READ_ONLY.value, AccessMode.SYSTEM.value}:
+            raise ValueError("TEST must be read-only AI verification or SYSTEM execution")
         if name == "REVIEW" and self.access.upper() != AccessMode.READ_ONLY.value:
             raise ValueError("REVIEW must be read-only")
 
@@ -93,7 +95,7 @@ class StageConfig:
         name = str(data["name"]).upper()
         default_access = (
             AccessMode.WRITE.value if name in WRITE_STAGES else
-            AccessMode.SYSTEM.value if name in {"CHECK", "TEST", "FINAL"} else
+            AccessMode.SYSTEM.value if name in {"CHECK", "FINAL"} else
             AccessMode.READ_ONLY.value
         )
         return cls(
@@ -134,6 +136,16 @@ class TaskPlan:
         for stage in self.stages:
             stage.validate()
         names = [stage.name.upper() for stage in self.stages]
+        if self.mode.upper() == "C" and self.task_type.upper() in {
+            TaskType.DEVELOPMENT.value, TaskType.MIXED.value,
+        }:
+            required = ["DESIGN", "IMPLEMENT", "TEST", "CHECK", "REVIEW", "FINAL"]
+            missing = [name for name in required if name not in names]
+            if missing:
+                raise ValueError(f"MODE C development plan is missing required stages: {missing}")
+            positions = [names.index(name) for name in required]
+            if positions != sorted(positions):
+                raise ValueError("MODE C stages must follow DESIGN→IMPLEMENT→TEST→CHECK→REVIEW→FINAL")
         if names[-1] != "FINAL":
             raise ValueError("FINAL must be the last stage")
         if "REVIEW" in names:

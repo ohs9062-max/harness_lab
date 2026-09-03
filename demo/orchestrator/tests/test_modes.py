@@ -113,12 +113,37 @@ class TestV3Modes(unittest.TestCase):
 
     def test_a6_independent_prompts_do_not_contain_sibling_results(self):
         engine, state = self.run_a("TASK-A6")
-        codex_prompt = [item for item in engine._adapters["codex"].prompts if item["stage"] == "INDEPENDENT_WORK"][0]["prompt"]
-        gemini_prompt = [item for item in engine._adapters["gemini"].prompts if item["stage"] == "INDEPENDENT_WORK"][0]["prompt"]
+        codex_prompt = [item for item in engine._adapters["codex"].prompts if item["stage"] == "IMPLEMENT"][0]["prompt"]
+        gemini_prompt = [item for item in engine._adapters["gemini"].prompts if item["stage"] == "IMPLEMENT"][0]["prompt"]
         self.assertNotIn(state.worker_branches["gemini"], codex_prompt)
         self.assertNotIn(state.worker_branches["codex"], gemini_prompt)
         self.assertNotIn(state.checkpoints["gemini"], codex_prompt)
         self.assertNotIn(state.checkpoints["codex"], gemini_prompt)
+
+    def test_a_selection_revalidates_worker_checkpoint(self):
+        engine, waiting = self.run_a("TASK-A-CHECKPOINT")
+        worker = Path(waiting.worktrees["gemini"])
+        (worker / "after-checkpoint.txt").write_text("changed after gate\n")
+        subprocess.run(["git", "add", "."], cwd=worker, check=True)
+        subprocess.run(["git", "commit", "-q", "-m", "unexpected"], cwd=worker, check=True)
+        state = engine.resume_mode_a(waiting.task_id, "SELECT_GEMINI")
+        self.assertEqual(state.status, "BLOCKED")
+        self.assertIn("HEAD changed", state.blocker)
+        self.assertFalse(any(
+            item["stage"] == "CODEX_MERGE"
+            for item in engine._adapters["codex"].prompts
+        ))
+
+    def test_a_research_workers_persist_independent_artifacts(self):
+        engine = self.engine()
+        plan = Coordinator(str(self.root)).create_deterministic_plan(
+            "TASK-A-RESEARCH", "독립 조사해", mode="A",
+        )
+        state = engine.run_plan(plan, "A로 독립 조사해", dry_run=False, execute=True)
+        self.assertEqual(state.status, "WAITING_USER")
+        for worker in ("codex", "gemini"):
+            artifact = Path(state.worktrees[worker]) / f"artifacts/{state.task_id}/{worker}-result.md"
+            self.assertTrue(artifact.is_file())
 
     def _interrupted_c_state(self, engine, task_id, expected_status=None):
         plan = self.plan_c(task_id)
@@ -174,10 +199,12 @@ class TestV3Modes(unittest.TestCase):
         self.assertEqual(state.status, "DONE")
         self.assertEqual(state.review_cycles, 1)
         fix = [item for item in engine._adapters["codex"].prompts if item["stage"] == "FIX"]
+        tests = [item for item in engine._adapters["codex"].prompts if item["stage"] == "TEST"]
         review = [item for item in engine._adapters["gemini"].prompts if item["stage"] == "REVIEW"]
         self.assertEqual(len(fix), 1)
+        self.assertEqual(len(tests), 2)
         self.assertEqual(len(review), 2)
-        self.assertTrue(all(item["cwd"] == state.active_worktree for item in fix + review))
+        self.assertTrue(all(item["cwd"] == state.active_worktree for item in fix + tests + review))
 
     def test_git1_non_git_blocks_before_any_worker(self):
         with tempfile.TemporaryDirectory() as directory:

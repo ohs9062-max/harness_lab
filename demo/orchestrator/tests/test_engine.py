@@ -40,6 +40,7 @@ class TestEngineWorkflows(unittest.TestCase):
             stages=[
                 StageConfig("DESIGN", "PIPELINE", ["claude"], "planner", "READ_ONLY"),
                 StageConfig("IMPLEMENT", "PIPELINE", ["codex"], "implementer", "WRITE"),
+                StageConfig("TEST", "PIPELINE", ["codex"], "tester", "READ_ONLY"),
                 StageConfig("CHECK", "PIPELINE", ["system"], "checker", "SYSTEM"),
                 StageConfig("REVIEW", "PIPELINE", ["gemini"], "reviewer", "READ_ONLY"),
                 StageConfig("FINAL", "PIPELINE", ["system"], "finalizer", "SYSTEM"),
@@ -99,9 +100,10 @@ class TestEngineWorkflows(unittest.TestCase):
 
     def test_parallel_stage_allows_explicit_quorum(self):
         plan = self.plan("TASK-QUORUM")
-        plan.stages[0] = StageConfig(
+        plan.stages.insert(0, StageConfig(
             "ANALYZE", "PARALLEL", ["claude", "gemini"], "analyst", "READ_ONLY", min_success=1,
-        )
+        ))
+        plan.stages[1].agents = ["gemini"]
         engine = self.engine(fake_options={"review_verdict": "PASS"})
         original = engine._get_adapter
 
@@ -124,7 +126,7 @@ class TestEngineWorkflows(unittest.TestCase):
 
     def test_review_fallback_ignores_failed_primary_verdict(self):
         plan = self.plan("TASK-REVIEW-FALLBACK")
-        plan.stages[3].fallback_agents = ["fake"]
+        plan.stages[4].fallback_agents = ["fake"]
         engine = self.engine(fake_options={"review_verdict": "PASS"})
         original = engine._get_adapter
 
@@ -181,9 +183,9 @@ class TestEngineWorkflows(unittest.TestCase):
 
     def test_parallel_read_outputs_are_isolated(self):
         plan = self.plan("TASK-PARALLEL")
-        plan.stages[0] = StageConfig(
+        plan.stages.insert(0, StageConfig(
             "ANALYZE", "PARALLEL", ["claude", "gemini"], "analyst", AccessMode.READ_ONLY.value,
-        )
+        ))
         state = self.engine(fake_options={"review_verdict": "PASS"}).run_plan(
             plan, "analyze and implement", dry_run=False, execute=True,
         )

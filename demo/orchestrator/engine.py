@@ -16,7 +16,7 @@ from demo.orchestrator.models import (
     RuntimeState, StageConfig, StageStatus, TaskPlan,
 )
 from demo.orchestrator.prompt_builder import build_stage_prompt
-from demo.orchestrator.state import StateManager
+from demo.orchestrator.state import StateManager, mask_sensitive_data
 from demo.orchestrator.worktree import WorktreeManager
 
 
@@ -136,7 +136,8 @@ class OrchestratorEngine:
         )
         self._activate_workspace(worktree.path)
         initial_snapshot = self.git.snapshot()
-        self._run_pipeline_stages(state, plan, plan.stages, log)
+        final_stage = plan.stages[-1]
+        self._run_pipeline_stages(state, plan, plan.stages[:-1], log)
         if state.status != "BLOCKED":
             try:
                 state.checkpoints["pipeline"] = self.worktree_mgr.checkpoint(
@@ -150,9 +151,12 @@ class OrchestratorEngine:
                     state.base_commit, state.checkpoints["pipeline"], worktree.path,
                 )
                 state.stage_statuses["CHECKPOINT"] = StageStatus.DONE.value
-                state.status = "DONE"
             except Exception as error:
                 self._block(state, "CHECKPOINT", str(error), log)
+        if state.status != "BLOCKED":
+            self._run_pipeline_stages(state, plan, [final_stage], log)
+            if state.status != "BLOCKED":
+                state.status = "DONE"
         self._finish_state(state, initial_snapshot)
         self.state_mgr.append_event(state.task_id, "run.finished", status=state.status, blocker=state.blocker)
         log(f"Finished with status {state.status}")
@@ -163,6 +167,13 @@ class OrchestratorEngine:
         log: Callable[[str], None],
     ) -> None:
         for stage in stages:
+            if stage.name == "TEST" and stage.access == AccessMode.READ_ONLY.value:
+                actual_writer = self._last_successful_writer(state)
+                if actual_writer and stage.agents != [actual_writer]:
+                    stage = StageConfig(
+                        name="TEST", execution="PIPELINE", agents=[actual_writer],
+                        role=stage.role, access=stage.access, required=stage.required,
+                    )
             if state.mode == "B" and stage.name == "REVIEW":
                 stage = self._safe_relay_review_stage(state, stage)
             state.current_stage = stage.name
@@ -171,7 +182,9 @@ class OrchestratorEngine:
             self.state_mgr.append_event(plan.task_id, "stage.started", stage=stage.name, agents=stage.agents)
             log(f"Stage {stage.name}: {', '.join(stage.agents)}")
 
-            if stage.name in {"CHECK", "TEST"}:
+            if stage.name == "CHECK" or (
+                stage.name == "TEST" and stage.access == AccessMode.SYSTEM.value
+            ):
                 if not self._run_checks(state, stage, log):
                     break
                 continue
@@ -279,11 +292,16 @@ class OrchestratorEngine:
         state.current_stage = "INDEPENDENT_WORK"
         state.worker_status[agent] = StageStatus.RUNNING.value
         before = self.git.snapshot()
+        worker_stage = "SYNTHESIZE" if plan.task_type == "RESEARCH" else "IMPLEMENT"
+        worker_artifact = (
+            f"artifacts/{state.task_id}/{agent}-result.md"
+            if plan.task_type == "RESEARCH" else plan.output_artifact
+        )
         prompt = build_stage_prompt(
             task_id=state.task_id, user_request=state.user_request,
-            stage_name="IMPLEMENT", agent_name=agent, execution_mode="PIPELINE",
+            stage_name=worker_stage, agent_name=agent, execution_mode="PIPELINE",
             base_commit=state.base_commit, worktree_path=worktree,
-            output_artifact=plan.output_artifact, role="independent MODE A worker",
+            output_artifact=worker_artifact, role="independent MODE A worker",
             access=AccessMode.WRITE.value,
             extra_context={
                 "handoff_path": "not available during independent work",
@@ -294,7 +312,7 @@ class OrchestratorEngine:
             },
         )
         result = self._get_adapter(agent).run(
-            prompt=prompt, cwd=worktree, stage="INDEPENDENT_WORK",
+            prompt=prompt, cwd=worktree, stage=worker_stage,
             timeout_sec=self.agent_timeout_sec, access=AccessMode.WRITE.value,
         )
         delta = self._snapshot_delta(before, self.git.snapshot())
@@ -357,18 +375,21 @@ class OrchestratorEngine:
         state.stage_statuses["CROSS_REVIEW"] = StageStatus.RUNNING.value
         pairs = (("gemini", "codex"), ("codex", "gemini"))
         for reviewer, target in pairs:
-            diff = self.worktree_mgr.diff(
+            diff = mask_sensitive_data(self.worktree_mgr.diff(
                 state.base_commit, state.checkpoints[target], state.worktrees[target],
-            )[:80_000]
+            ))[:80_000]
             changed = self.worktree_mgr.changed_files(
                 state.base_commit, state.checkpoints[target], state.worktrees[target],
             )
+            test_summary = mask_sensitive_data(
+                json.dumps(state.worker_tests[target], ensure_ascii=False)
+            )[:20_000]
             prompt = (
                 f"MODE A CROSS_REVIEW. Review {target}'s completed independent result read-only.\n"
                 f"TASK-ID: {state.task_id}\nUSER GOAL: {state.user_request}\n"
                 f"BASE-COMMIT: {state.base_commit}\nTARGET-BRANCH: {state.worker_branches[target]}\n"
                 f"TARGET-CHECKPOINT: {state.checkpoints[target]}\nCHANGED-FILES: {changed}\n"
-                f"TEST-RESULTS: {json.dumps(state.worker_tests[target], ensure_ascii=False)}\n"
+                f"TEST-RESULTS: {test_summary}\n"
                 "Report concrete findings with severity, file/location, evidence, and required change. "
                 "Do not edit, commit, merge, or inspect the other worker result.\n\nDIFF:\n" + diff
             )
@@ -440,7 +461,7 @@ class OrchestratorEngine:
                 f"- branch: {state.worker_branches[worker]}",
                 f"- checkpoint: {state.checkpoints[worker]}",
                 f"- changed files: {', '.join(changed) or 'none'}",
-                f"- tests: {json.dumps(state.worker_tests[worker], ensure_ascii=False)}", "",
+                f"- tests: {json.dumps(state.worker_tests[worker], ensure_ascii=False)[:20_000]}", "",
                 "### Summary / design / strengths / weaknesses", "",
                 self._latest_output_for_agent(state, worker, "INDEPENDENT_WORK"), "",
                 "### Cross Review findings", "",
@@ -507,15 +528,27 @@ class OrchestratorEngine:
             return state
 
         preflight = self.base_git.preflight()
-        if preflight.head != state.base_commit or preflight.dirty:
+        if (
+            preflight.branch != state.base_branch
+            or preflight.head != state.base_commit
+            or preflight.dirty
+        ):
             return self._block_and_finish(
                 state, "CODEX_MERGE",
-                "base changed since MODE A started; integration requires a fresh user decision",
+                "base branch/HEAD/dirty state changed since MODE A started; integration requires a fresh user decision",
                 log,
             )
         required_workers = {"codex", "gemini"}
         if set(state.checkpoints) < required_workers:
             return self._block_and_finish(state, "CODEX_MERGE", "both worker checkpoints are required", log)
+        try:
+            for worker in sorted(required_workers):
+                self.worktree_mgr.verify_checkpoint(
+                    state.worktrees[worker], state.worker_branches[worker],
+                    state.checkpoints[worker], state.base_commit,
+                )
+        except Exception as error:
+            return self._block_and_finish(state, "CODEX_MERGE", str(error), log)
 
         selected = ["codex"] if selection == "SELECT_CODEX" else ["gemini"]
         if selection == "SELECT_HYBRID":
@@ -593,6 +626,13 @@ COMPARE REPORT:
         if worktree == self.base_repo:
             return self._block_and_finish(state, "GIT_VERIFY", "MODE B cannot write in base worktree", log)
         try:
+            registered = {
+                Path(item["worktree"]).resolve()
+                for item in self.base_git.preflight().worktrees
+                if item.get("worktree")
+            }
+            if worktree not in registered:
+                raise ValueError(f"state worktree is not registered with base repository: {worktree}")
             inspector = GitInspector(str(worktree))
             evidence = inspector.relay_evidence()
         except Exception as error:
@@ -600,6 +640,14 @@ COMPARE REPORT:
         discrepancies: List[str] = []
         if state.active_branch and evidence["branch"] != state.active_branch:
             discrepancies.append(f"recorded branch {state.active_branch} != Git branch {evidence['branch']}")
+        expected_checkpoint = (
+            state.relay.get("checkpoint") or state.checkpoints.get("relay")
+            or state.checkpoints.get("pipeline")
+        )
+        if expected_checkpoint and evidence["head"] != expected_checkpoint:
+            discrepancies.append(
+                f"recorded checkpoint {expected_checkpoint} != Git HEAD {evidence['head']}; actual Git HEAD used"
+            )
         expected_status = state.relay.get("git_status")
         if expected_status is not None and expected_status != evidence["status"]:
             discrepancies.append("recorded Git status differs from actual Git status; actual Git state used")
@@ -630,7 +678,9 @@ COMPARE REPORT:
         state.blocker = None
         self._activate_workspace(str(worktree))
         before = self.git.snapshot()
-        self._run_pipeline_stages(state, plan, stages, log)
+        final_stages = [stage for stage in stages if stage.name == "FINAL"]
+        work_stages = [stage for stage in stages if stage.name != "FINAL"]
+        self._run_pipeline_stages(state, plan, work_stages, log)
         if state.status != "BLOCKED":
             if self.git.preflight().dirty:
                 try:
@@ -639,6 +689,8 @@ COMPARE REPORT:
                     )
                 except Exception as error:
                     self._block(state, "CHECKPOINT", str(error), log)
+            if state.status != "BLOCKED":
+                self._run_pipeline_stages(state, plan, final_stages, log)
             if state.status != "BLOCKED":
                 state.status = "DONE"
         self._finish_state(state, before)
@@ -849,6 +901,13 @@ COMPARE REPORT:
             )
             state.current_stage = "FIX"
             if not self._run_agent_stage(state, plan, fix_stage, log):
+                return False
+            test_stage = StageConfig(
+                name="TEST", execution="PIPELINE", agents=[actual_fixer], role="post-fix tester",
+                access=AccessMode.READ_ONLY.value, required=True,
+            )
+            state.current_stage = "TEST"
+            if not self._run_agent_stage(state, plan, test_stage, log):
                 return False
             check_stage = StageConfig(
                 name="CHECK", execution="PIPELINE", agents=["system"], role="deterministic verifier",

@@ -21,6 +21,8 @@ class GitPreflight:
 
 
 class GitInspector:
+    RUNTIME_EXCLUDES = (":(exclude).harness", ":(exclude).harness/**")
+
     def __init__(self, repo_root: str):
         self.repo_root = Path(repo_root).resolve()
 
@@ -36,7 +38,10 @@ class GitInspector:
             raise ValueError(f"repo_root must be the Git root: {root}")
         branch = self._git("branch", "--show-current").stdout.strip() or "DETACHED"
         head = self._git("rev-parse", "HEAD").stdout.strip()
-        lines = [line for line in self._git("status", "--porcelain=v1").stdout.splitlines() if line]
+        status = self._git(
+            "status", "--porcelain=v1", "--untracked-files=all", "--", ".", *self.RUNTIME_EXCLUDES,
+        ).stdout
+        lines = [line for line in status.splitlines() if line]
         return GitPreflight(
             root=root, branch=branch, head=head, dirty=bool(lines), status=lines,
             worktrees=self.list_worktrees(),
@@ -61,7 +66,8 @@ class GitInspector:
         """Hash tracked diffs and untracked file contents without mutating Git."""
         snapshot: Dict[str, str] = {}
         entries = self._git(
-            "status", "--porcelain=v1", "-z", "--untracked-files=all"
+            "status", "--porcelain=v1", "-z", "--untracked-files=all",
+            "--", ".", *self.RUNTIME_EXCLUDES,
         ).stdout.split("\0")
         index = 0
         paths: List[str] = []

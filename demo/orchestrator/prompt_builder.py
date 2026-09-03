@@ -98,6 +98,14 @@ Implement the requested result in `{target}`. For FIX, address every actionable 
 Run focused checks you can safely run, but leave the final independent verdict to the reviewer.
 In your response list changed files, commands actually run, results, and any remaining issue.
 """
+    elif stage == "TEST":
+        prompt += """
+## Deliverable
+
+Inspect the implemented diff and run the focused tests needed for the user goal. Do not edit files.
+Report every command actually run, its result, uncovered risk, and whether deterministic CHECK should proceed.
+This report does not replace the Runner's independent deterministic CHECK or reviewer verdict.
+"""
     elif stage == "REVIEW":
         prompt += """
 ## Deliverable

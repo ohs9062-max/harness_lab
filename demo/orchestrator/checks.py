@@ -46,7 +46,12 @@ class CheckRunner:
                 if script in scripts:
                     commands.append(["npm", "run", script])
 
-        test_roots = sorted({path.parent for path in self.repo_root.glob("**/tests/test_*.py")})
+        excluded_parts = {".git", ".harness", ".venv", "venv", "node_modules"}
+        test_roots = sorted({
+            path.parent
+            for path in self.repo_root.glob("**/tests/test_*.py")
+            if not (set(path.relative_to(self.repo_root).parts) & excluded_parts)
+        })
         for test_root in test_roots:
             commands.append([
                 sys.executable, "-m", "unittest", "discover",

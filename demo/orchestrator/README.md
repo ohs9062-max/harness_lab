@@ -59,8 +59,8 @@ Cross Review, Response 1회, runtime Compare를 거쳐 `WAITING_USER`가 된다.
 
 ## MODE C Gate
 
-Claude DESIGN → Codex IMPLEMENT → CHECK → Gemini REVIEW를 pipeline worktree에서 실행한다.
-명시적 PASS만 FINAL로 진행한다. FIX_REQUIRED면 writer FIX → CHECK → fresh REVIEW를 반복하고,
+Claude DESIGN → Codex IMPLEMENT → Codex TEST → deterministic CHECK → Gemini REVIEW를 pipeline worktree에서 실행한다.
+명시적 PASS만 FINAL로 진행한다. FIX_REQUIRED면 writer FIX → TEST → CHECK → fresh REVIEW를 반복하고,
 성공하면 pipeline checkpoint를 남긴다.
 
 ## 검증

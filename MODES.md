@@ -70,7 +70,6 @@
 ### 기본 Worker
 
 - 기본: Codex + Gemini (2인)
-- 사용자가 명시적으로 Claude 참여를 지시하면 3인 이상 가능
 - 한쪽 Worker 결과만으로는 A가 완료되지 않는다
 
 ### 상태 머신
@@ -271,11 +270,14 @@ TEST (Codex)
   실행, 테스트
   결과를 IMPLEMENTATION.md에 추가
   ↓
+CHECK (System)
+  발견/지정된 결정론적 검사를 실행
+  ↓
 REVIEW (Gemini)
   독립 검수
   shared/REVIEW.md에 판정:
     ├─ PASS → FINAL
-    ├─ FIX_REQUIRED → FIX (Codex) → TEST → REVIEW
+    ├─ FIX_REQUIRED → FIX (Codex) → TEST → CHECK → REVIEW
     └─ BLOCKED → 사용자 판단 요청
   ↓
 FINAL
@@ -284,9 +286,9 @@ FINAL
 ### FIX Loop
 
 - REVIEW에서 FIX_REQUIRED 판정 시:
-  - Codex가 FIX → TEST
+  - Codex가 FIX → TEST → CHECK
   - Gemini가 다시 REVIEW
-  - PASS될 때까지 반복 (무한 반복은 사용자가 판단)
+  - 설정된 `max_review_cycles` 안에서 반복하고 초과하면 BLOCKED
 - 구현에 참여한 AI는 같은 결과의 독립 REVIEW를 겸하지 않는다
 - FIX 기본 담당은 Codex다. IMPLEMENT가 fallback Agent로 실제 완료된 경우에는 그 실제 writer가 FIX를 이어받고, reviewer는 계속 분리한다.
 - 성공한 pipeline 결과는 task branch에 local checkpoint commit으로 보존한다. base 통합과 push는 별도다.

@@ -98,3 +98,24 @@ class WorktreeManager:
             cwd=Path(worktree_path).resolve(),
         ).stdout
         return [line for line in output.splitlines() if line]
+
+    def verify_checkpoint(
+        self, worktree_path: str, branch: str, checkpoint: str, base_commit: str,
+    ) -> None:
+        worktree = Path(worktree_path).resolve()
+        records = self._worktree_records()
+        record = next(
+            (item for item in records if item.get("worktree") and Path(item["worktree"]).resolve() == worktree),
+            None,
+        )
+        if record is None:
+            raise ValueError(f"Unregistered worktree: {worktree}")
+        actual_branch = self._git(["branch", "--show-current"], cwd=worktree).stdout.strip()
+        actual_head = self._git(["rev-parse", "HEAD"], cwd=worktree).stdout.strip()
+        merge_base = self._git(["merge-base", base_commit, checkpoint], cwd=worktree).stdout.strip()
+        if actual_branch != branch:
+            raise RuntimeError(f"Worktree branch changed: expected {branch}, got {actual_branch}")
+        if actual_head != checkpoint:
+            raise RuntimeError(f"Worker HEAD changed: expected {checkpoint}, got {actual_head}")
+        if merge_base != base_commit:
+            raise RuntimeError("Worker checkpoint no longer descends from the frozen base commit")

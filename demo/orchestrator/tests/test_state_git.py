@@ -7,11 +7,37 @@ import unittest
 from pathlib import Path
 
 from demo.orchestrator.git_state import GitInspector
+from demo.orchestrator.checks import CheckRunner
 from demo.orchestrator.models import RuntimeState
 from demo.orchestrator.state import StateManager
 
 
 class TestStateAndGit(unittest.TestCase):
+    def test_check_discovery_ignores_runtime_worktrees(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "tests").mkdir()
+            (root / "tests/test_real.py").write_text("pass\n")
+            (root / ".harness/worktrees/T/tests").mkdir(parents=True)
+            (root / ".harness/worktrees/T/tests/test_duplicate.py").write_text("pass\n")
+            commands = CheckRunner(str(root)).discover()
+            starts = [command[command.index("-s") + 1] for command in commands if "-s" in command]
+            self.assertEqual(starts, ["tests"])
+
+    def test_runtime_directory_does_not_make_repository_dirty(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            (root / "README.md").write_text("tracked\n")
+            subprocess.run(["git", "add", "README.md"], cwd=root, check=True)
+            subprocess.run(
+                ["git", "-c", "user.name=Test", "-c", "user.email=test@example.invalid",
+                 "commit", "-q", "-m", "initial"], cwd=root, check=True,
+            )
+            (root / ".harness/runs/TASK-X").mkdir(parents=True)
+            (root / ".harness/runs/TASK-X/state.json").write_text("{}")
+            self.assertFalse(GitInspector(str(root)).preflight().dirty)
+
     def test_event_json_remains_valid_when_secret_keys_are_masked(self):
         with tempfile.TemporaryDirectory() as directory:
             manager = StateManager(directory)

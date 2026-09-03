@@ -20,7 +20,7 @@ python3 -m demo.orchestrator --mode A --resume TASK-ID \
 python3 -m demo.orchestrator --mode B --resume TASK-ID \
   --relay-agent gemini --execute
 
-# C: Claude 설계 → Codex 구현/검사 → Gemini 검수
+# C: Claude 설계 → Codex 구현/TEST → 결정론적 CHECK → Gemini 검수
 python3 -m demo.orchestrator "설정 로더를 구현하고 테스트해" --mode C --execute
 ```
 
@@ -35,7 +35,7 @@ python3 -m demo.orchestrator "설정 로더를 구현하고 테스트해" --mode
   `.harness/runs/<TASK-ID>/compare.md` 생성 후 반드시 `WAITING_USER`에서 멈춘다.
 - B: 새 worktree를 만들지 않는다. 기존 state의 branch/worktree/checkpoint와 실제
   `git status/log/diff`를 대조하고, Git을 정본으로 미완료 Stage부터 이어간다.
-- C: `task/<TASK-ID>/pipeline` worktree 하나에서 Claude→Codex→Gemini가 결과를 넘긴다.
+- C: `task/<TASK-ID>/pipeline` worktree 하나에서 Claude DESIGN → Codex IMPLEMENT/TEST → 시스템 CHECK → Gemini REVIEW로 결과를 넘긴다.
   `FIX_REQUIRED`면 기본 Codex, 실제 fallback 구현자가 있었다면 그 writer가 FIX한다.
 
 `PIPELINE`과 `PARALLEL`은 Stage 내부 실행 전략이며 사용자 MODE A/B/C가 아니다.

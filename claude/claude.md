@@ -19,7 +19,7 @@
 ### MODE A (Parallel Competition)
 
 - Claude는 기본 Worker가 아니다 (기본: Codex + Gemini).
-- 사용자가 명시적으로 Claude 참여를 지시하면 Worker로 참가한다.
+- V3 자동 Runner의 MODE A Worker 집합에는 참여하지 않는다.
 - Entry AI로 A 요청을 받으면 Coordinator 역할만 수행한다:
   TASK 정의, Git Preflight, worktree 준비, Worker 실행 안내.
 

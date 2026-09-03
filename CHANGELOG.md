@@ -83,3 +83,16 @@
 - Stage별 분리 worktree와 자동 commit을 제거하고 MODE C 공유 작업 트리에서 결과가 실제로 이어지도록 정리했다.
 - 실제 fixture E2E와 31개 회귀 테스트, 독립 Antigravity 검수 PASS로 동작을 확인했다.
 - 관련 작업: `TASK-2026-09-03-001`.
+
+## 2026-09-03 — V3 MODE A/B/C Runner 계약 완성
+
+- MODE A의 두 required worktree, local checkpoint, 독립성 Gate, 양방향 Cross Review,
+  1회 Response, runtime Compare와 `WAITING_USER` 재개를 자동화했다.
+- 사용자의 A 선택 후 Codex가 선택된 checkpoint만 base working tree에 통합하고 CHECK/FINAL을
+  수행하도록 했으며 push와 자동 base commit은 금지했다.
+- MODE B가 기존 TASK-ID의 runtime state와 등록 worktree를 로드하고 실제 Git 상태를 정본으로
+  남은 Stage부터 이어받도록 구현했다.
+- MODE C의 모든 Worker write를 `task/<TASK-ID>/pipeline` worktree로 옮기고 성공 결과를 local
+  checkpoint로 보존하도록 변경했다.
+- task worktree checkpoint는 Runner 실행 승인 범위, base 통합과 push는 별도 권한으로 문서 정책을 통일했다.
+- 관련 작업: `TASK-2026-09-03-002`.
