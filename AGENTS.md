@@ -28,6 +28,18 @@ MODE별 실행 계약은 `MODES.md`, 실행 흐름은 `WORKFLOW.md`, 코드 원�
 어떤 AI에게 처음 명령하든 동일한 실행 계약이 적용된다.
 AI가 MODE를 임의로 변경하거나 생략하지 않는다.
 
+사용자가 MODE를 지정하지 않고 한 번의 목표로 자동 완성을 요청하면 `demo/orchestrator`는 MODE C를 기본값으로 사용한다. 이 기본값은 Runner에만 적용되며, MODE A의 사용자 선택 Gate나 MODE B 인계 계약을 우회하지 않는다.
+
+### 자동 Runner 공통 규칙
+
+- AI 역할은 read-only(분석/설계/검수), write(구현/FIX), system(CHECK/FINAL)으로 분리한다.
+- 구현에 참여한 실제 Agent는 같은 실행의 REVIEW 후보가 될 수 없다.
+- 결정론적 CHECK를 LLM REVIEW보다 먼저 수행한다.
+- 명시적인 REVIEW 판정이 없거나 서로 모순되면 `BLOCKED`다.
+- CLI 장애 fallback과 병렬 quorum은 계획에 명시된 범위에서만 허용한다.
+- 런타임 정본은 `.harness/runs/<TASK-ID>/state.json`, 인계는 `handoff.json`, 감사 기록은 `events.jsonl`이다.
+- Runner는 자동 commit, merge, push를 수행하지 않는다.
+
 ## 3. 작업 시작 절차
 
 작업을 시작하기 전에 다음 순서로 확인한다.

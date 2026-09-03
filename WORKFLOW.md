@@ -13,15 +13,15 @@ MODE별 실행 계약은 `MODES.md`, 공통 규칙은 `AGENTS.md`, 코드 원칙
 
 ```
 사용자 요청 원문 보존
-→ MODE 확인 (A / B / C)
+→ MODE 확인 (명시가 없으면 자동 Runner는 C)
 → TASK-ID 생성
 → Git Preflight (MODES.md 공통 Gate)
 → shared/TASK.md에 계약 기록
-→ Worker 실행 안내
+→ 수동 MODE는 Worker 실행 안내 / 자동 MODE C는 Runner가 Worker CLI 실행
 ```
 
 Entry AI는 Worker를 자동으로 겸하지 않는다.
-사용자가 MODE를 지정하지 않았다면 사용자에게 확인한다.
+사용자가 MODE를 지정하지 않고 자동 완성을 요청하면 MODE C를 기본값으로 사용한다. 결과 동작이 달라지는 MODE A/B 선택이 꼭 필요한 경우에만 사용자에게 확인한다.
 
 ### 새 TASK 점검표
 
@@ -146,6 +146,22 @@ DEFINE (Entry AI)
   └─ BLOCKED → 사용자 판단
 → FINAL
 ```
+
+### 자동 Runner
+
+```bash
+python3 -m demo.orchestrator --doctor
+python3 -m demo.orchestrator "사용자 작업 목표" --execute
+```
+
+Runner는 다음 Gate를 추가로 강제한다.
+
+1. 설계/검수는 read-only, 구현/FIX만 write 권한을 부여한다.
+2. 각 Agent의 출력은 `.harness/runs/<TASK-ID>/outputs/`에 저장하고 `handoff.json`과 inline excerpt로 다음 Stage에 전달한다.
+3. 테스트·lint·typecheck·build를 안전하게 발견해 REVIEW보다 먼저 실행한다. 검사 없음은 PASS가 아니라 `WAIVED`로 기록한다.
+4. REVIEW는 명시적인 `VERDICT: PASS | FIX_REQUIRED | BLOCKED`만 인정한다.
+5. FIX_REQUIRED면 구현 Agent가 수정하고 CHECK와 독립 REVIEW를 새로 실행한다.
+6. Runner는 commit, merge, push를 수행하지 않는다.
 
 역할은 기본 배치이며 사용자가 교체를 지시하면 변경한다.
 구현에 참여한 AI는 같은 결과의 독립 REVIEW를 겸하지 않는다.

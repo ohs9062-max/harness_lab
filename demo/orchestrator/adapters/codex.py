@@ -1,4 +1,4 @@
-"""Codex CLI Agent Adapter."""
+"""Codex CLI adapter with workspace sandboxing and auto-reviewed approvals."""
 
 from __future__ import annotations
 
@@ -10,48 +10,33 @@ from demo.orchestrator.adapters.base import BaseAgentAdapter
 
 
 class CodexAgentAdapter(BaseAgentAdapter):
-    """Adapter for Codex CLI (codex exec)."""
-
     def __init__(self, binary_name: str = "codex"):
-        super().__init__(name="codex")
+        super().__init__("codex")
         self.binary_name = binary_name
 
     def check_availability(self) -> Tuple[bool, str]:
-        path = shutil.which(self.binary_name)
-        if not path:
+        if not shutil.which(self.binary_name):
             return False, f"Binary '{self.binary_name}' not found in PATH"
         try:
-            res = subprocess.run(
-                [self.binary_name, "--version"],
-                capture_output=True,
-                text=True,
-                timeout=10,
-                shell=False,
-            )
-            if res.returncode == 0:
-                return True, res.stdout.strip()
-            return False, f"Version check failed: {res.stderr.strip()}"
-        except Exception as e:
-            return False, f"Execution failed: {str(e)}"
+            result = subprocess.run([self.binary_name, "--version"], capture_output=True, text=True, timeout=10)
+            return (result.returncode == 0, (result.stdout or result.stderr).strip())
+        except OSError as error:
+            return False, str(error)
 
     def build_command(
-        self,
-        prompt: str,
-        cwd: str,
+        self, prompt: str, cwd: str, access: str = "READ_ONLY",
         options: Optional[Dict[str, Any]] = None,
     ) -> List[str]:
         options = options or {}
-        cmd = [
-            self.binary_name,
-            "exec",
-            "-C",
-            cwd,
-            "--dangerously-bypass-approvals-and-sandbox",
-        ]
-        model = options.get("model")
-        if model:
-            cmd.extend(["-m", str(model)])
-
-        # Prompt is passed as last positional argument
-        cmd.append(prompt)
-        return cmd
+        command = [self.binary_name, "exec", "-C", cwd]
+        if access.upper() == "WRITE":
+            # --approve-for-me supplies Codex's auto-reviewed workspace-write policy
+            # and is mutually exclusive with an explicit --sandbox flag.
+            command.append("--approve-for-me")
+        else:
+            command.extend(["-s", "read-only"])
+        command.extend(["--ephemeral", "--color", "never"])
+        if options.get("model"):
+            command.extend(["-m", str(options["model"])])
+        command.append(prompt)
+        return command

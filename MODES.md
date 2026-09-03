@@ -58,11 +58,10 @@
 - Entry AI: 최초 사용자 요청을 받은 AI. Coordinator 역할만 수행한다.
 - Worker AI: 실제 작업을 수행하는 AI.
 - Entry AI가 자동으로 Worker를 겸하지 않는다.
-- Entry AI는 TASK 정의, Git Preflight, worktree 준비 후 사용자에게 Worker 실행을 안내한다.
-
-> 현재 자동 Runner가 없으므로, Entry AI가 Worker를 자동 호출할 수 없다.
-> Worker 실행은 사용자가 해당 AI의 세션에서 직접 시작한다.
-> demo/orchestrator에 V1 프로토타입이 있으나 완전 자동화가 아니다.
+- 대화형 MODE A에서 Entry AI는 TASK 정의, Git Preflight, worktree 준비 후 사용자 선택 Gate를 관리한다.
+- 자동 Runner의 기본 경로는 MODE C다. Runner가 Coordinator와 Worker CLI를 직접 호출하며 Entry/Worker 실행 세션을 분리한다.
+- Runner의 병렬 Stage는 결과 충돌을 막기 위해 READ_ONLY만 허용한다. 병렬 구현 경쟁인 MODE A는 독립 worktree와 사용자 선택 Gate를 유지한다.
+- CLI 인증·quota·timeout 실패는 숨기지 않고 기록하며, 계획에 정의된 fallback 또는 quorum으로만 계속한다.
 
 ---
 
@@ -398,9 +397,9 @@ Research A도 동일한 독립 → Cross Verification → Compare 흐름을 따�
 **Runner**는 실제 Claude/Codex/Gemini CLI를 호출하여 Protocol을 실행하는 프로그램이다.
 
 현재 상태:
-- Protocol: 이 문서로 정의 완료
-- Runner: demo/orchestrator에 V1 프로토타입 존재 (PIPELINE/PARALLEL 기반, MODE A/B/C 미반영)
-- 자동 fan-out: 아직 구현되지 않음
+- Protocol: 이 문서와 `AGENTS.md`, `WORKFLOW.md`가 정본이다.
+- Runner: `demo/orchestrator`가 MODE C의 계획, 실제 CLI 호출, read-only 병렬 fan-out, handoff, CHECK, REVIEW/FIX, FINAL Gate를 자동 실행한다.
+- MODE A: 독립 worktree 경쟁과 사용자 선택/merge Gate 때문에 수동 Coordinator 계약을 유지한다.
+- MODE B: `shared/context.md` 기반 인계 계약을 유지하며 자동 Runner 재개(resume)는 아직 지원하지 않는다.
 
-문서가 자동 실행되는 것처럼 표현하지 않는다.
-향후 Runner가 구현될 때, 이 문서의 상태 머신과 Gate를 그대로 구현할 수 있어야 한다.
+Runner의 런타임 기록은 `.harness/runs/<TASK-ID>/`에 저장한다. 문서 상태와 실제 `state.json`, Git diff가 다르면 실제 상태를 정본으로 삼는다.

@@ -1,65 +1,54 @@
-"""Tests for AI Agent CLI Adapters and Subprocess Safety."""
+"""CLI permission, verdict, and log-sanitization tests."""
 
 import unittest
-from demo.orchestrator.adapters import (
-    get_adapter,
-    CodexAgentAdapter,
-    ClaudeAgentAdapter,
-    GeminiAgentAdapter,
-    FakeAgentAdapter,
-)
+
+from demo.orchestrator.adapters import ClaudeAgentAdapter, CodexAgentAdapter, GeminiAgentAdapter
+from demo.orchestrator.adapters.base import BaseAgentAdapter
 from demo.orchestrator.state import mask_sensitive_data
 
 
 class TestAdapters(unittest.TestCase):
-
-    def test_codex_command_structure(self):
+    def test_codex_access_is_sandboxed(self):
         adapter = CodexAgentAdapter()
-        cmd = adapter.build_command(prompt="Test prompt", cwd="/tmp/worktree")
-        self.assertEqual(cmd[0], "codex")
-        self.assertEqual(cmd[1], "exec")
-        self.assertIn("-C", cmd)
-        self.assertIn("/tmp/worktree", cmd)
-        self.assertIn("--dangerously-bypass-approvals-and-sandbox", cmd)
-        self.assertEqual(cmd[-1], "Test prompt")
+        read = adapter.build_command("inspect", "/tmp/worktree", "READ_ONLY")
+        write = adapter.build_command("implement", "/tmp/worktree", "WRITE")
+        self.assertIn("read-only", read)
+        self.assertIn("--approve-for-me", write)
+        self.assertNotIn("--approve-for-me", read)
+        self.assertNotIn("--dangerously-bypass-approvals-and-sandbox", read + write)
 
-    def test_claude_command_structure(self):
+    def test_claude_access_is_role_scoped(self):
         adapter = ClaudeAgentAdapter()
-        cmd = adapter.build_command(prompt="Analyze code", cwd="/tmp/worktree")
-        self.assertEqual(cmd[0], "claude")
-        self.assertIn("-p", cmd)
-        self.assertIn("Analyze code", cmd)
-        self.assertIn("--permission-mode", cmd)
-        self.assertIn("bypassPermissions", cmd)
+        read = adapter.build_command("design", "/tmp/worktree", "READ_ONLY")
+        write = adapter.build_command("fix", "/tmp/worktree", "WRITE")
+        self.assertIn("plan", read)
+        self.assertIn("acceptEdits", write)
+        self.assertNotIn("bypassPermissions", read + write)
 
-    def test_gemini_command_structure(self):
+    def test_gemini_access_is_role_scoped(self):
         adapter = GeminiAgentAdapter()
-        cmd = adapter.build_command(prompt="Review doc", cwd="/tmp/worktree")
-        self.assertEqual(cmd[0], "gemini")
-        self.assertIn("-p", cmd)
-        self.assertIn("Review doc", cmd)
-        self.assertIn("-y", cmd)
-        self.assertIn("--approval-mode", cmd)
-        self.assertIn("yolo", cmd)
+        read = adapter.build_command("review", "/tmp/worktree", "READ_ONLY")
+        write = adapter.build_command("edit", "/tmp/worktree", "WRITE")
+        self.assertIn("plan", read)
+        self.assertIn("auto_edit", write)
+        self.assertNotIn("yolo", read + write)
 
-    def test_fake_adapter_success_and_verdict(self):
-        adapter = FakeAgentAdapter(name="fake_reviewer", force_success=True, review_verdict="PASS", create_files=False)
-        res = adapter.run(prompt="Review plan", cwd=".", stage="REVIEW")
-        self.assertTrue(res.success)
-        self.assertEqual(res.exit_code, 0)
-        self.assertEqual(res.review_verdict, "PASS")
-
-    def test_fake_adapter_failure(self):
-        adapter = FakeAgentAdapter(name="fake_worker", force_success=False, exit_code=1, create_files=False)
-        res = adapter.run(prompt="Do work", cwd=".", stage="RESEARCH")
-        self.assertFalse(res.success)
-        self.assertEqual(res.exit_code, 1)
+    def test_review_verdict_is_explicit_and_unambiguous(self):
+        self.assertEqual(BaseAgentAdapter._extract_review_verdict("finding\nVERDICT: PASS"), "PASS")
+        self.assertIsNone(BaseAgentAdapter._extract_review_verdict("Looks fine"))
+        self.assertEqual(BaseAgentAdapter._extract_review_verdict("Previous: VERDICT: FIX_REQUIRED\nVERDICT: PASS"), "PASS")
+        self.assertIsNone(BaseAgentAdapter._extract_review_verdict("VERDICT: PASS\nwarning after verdict"))
 
     def test_sensitive_data_masking(self):
-        raw_text = "Here is my api_key='sk-1234567890abcdefghijklmn' and token: ghp_1234567890abcdefghij"
-        masked = mask_sensitive_data(raw_text)
+        raw = "api_key='sk-1234567890abcdefghijklmn' token: ghp_1234567890abcdefghij"
+        masked = mask_sensitive_data(raw)
         self.assertNotIn("sk-1234567890abcdefghijklmn", masked)
         self.assertNotIn("ghp_1234567890abcdefghij", masked)
+        self.assertIn("[MASKED]", masked)
+
+    def test_authorization_bearer_masks_the_actual_token(self):
+        masked = mask_sensitive_data("Authorization: Bearer mysecrettoken12345678")
+        self.assertNotIn("mysecrettoken12345678", masked)
         self.assertIn("[MASKED]", masked)
 
 

@@ -1,129 +1,91 @@
-"""Base Agent Adapter and execution abstraction."""
+"""Safe subprocess abstraction for non-interactive AI CLIs."""
 
 from __future__ import annotations
 
-import os
 import re
-import shutil
 import subprocess
 import time
 from abc import ABC, abstractmethod
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from demo.orchestrator.models import AgentExecutionResult
 
 
 class BaseAgentAdapter(ABC):
-    """Abstract base class for all AI CLI adapters."""
-
-    def __init__(self, name: str):
+    def __init__(self, name: str, max_output_chars: int = 200_000):
         self.name = name
+        self.max_output_chars = max_output_chars
 
     @abstractmethod
     def check_availability(self) -> Tuple[bool, str]:
-        """Check if the local CLI binary exists and is usable."""
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def build_command(
-        self,
-        prompt: str,
-        cwd: str,
+        self, prompt: str, cwd: str, access: str = "READ_ONLY",
         options: Optional[Dict[str, Any]] = None,
     ) -> List[str]:
-        """Build the command line argument list for non-interactive execution."""
-        pass
+        raise NotImplementedError
 
     def run(
-        self,
-        prompt: str,
-        cwd: str,
-        stage: str,
-        timeout_sec: int = 600,
-        options: Optional[Dict[str, Any]] = None,
+        self, prompt: str, cwd: str, stage: str, timeout_sec: int = 600,
+        access: str = "READ_ONLY", options: Optional[Dict[str, Any]] = None,
     ) -> AgentExecutionResult:
-        """Run the CLI tool safely via subprocess and capture output."""
         available, reason = self.check_availability()
         if not available:
             return AgentExecutionResult(
-                agent=self.name,
-                stage=stage,
-                success=False,
-                exit_code=-1,
+                agent=self.name, stage=stage, success=False, exit_code=-1,
                 error_message=f"Agent '{self.name}' is unavailable: {reason}",
             )
-
-        cmd = self.build_command(prompt=prompt, cwd=cwd, options=options)
-        start_time = time.time()
-
+        command = self.build_command(prompt=prompt, cwd=cwd, access=access, options=options)
+        started = time.monotonic()
         try:
-            # We never use shell=True and pass cmd as a list of strings
             process = subprocess.run(
-                cmd,
-                cwd=cwd,
-                capture_output=True,
-                text=True,
-                timeout=timeout_sec,
-                shell=False,
+                command, cwd=cwd, capture_output=True, text=True,
+                timeout=timeout_sec, shell=False,
             )
-            duration = time.time() - start_time
-            success = (process.returncode == 0)
-
-            # Review verdict extraction if stage is REVIEW
+            stdout, stdout_cut = self._cap(process.stdout)
+            stderr, stderr_cut = self._cap(process.stderr)
             verdict = None
             if stage.upper() == "REVIEW":
-                verdict = self._extract_review_verdict(process.stdout + "\n" + process.stderr)
-
+                verdict = self._extract_review_verdict(stdout) or self._extract_review_verdict(stderr)
             return AgentExecutionResult(
                 agent=self.name,
                 stage=stage,
-                success=success,
+                success=process.returncode == 0,
                 exit_code=process.returncode,
-                stdout=process.stdout,
-                stderr=process.stderr,
-                error_message=None if success else f"Process exited with code {process.returncode}",
+                stdout=stdout,
+                stderr=stderr,
+                error_message=None if process.returncode == 0 else f"Process exited with code {process.returncode}",
                 review_verdict=verdict,
-                duration_sec=duration,
+                duration_sec=time.monotonic() - started,
+                output_truncated=stdout_cut or stderr_cut,
             )
-
-        except subprocess.TimeoutExpired as e:
-            duration = time.time() - start_time
+        except subprocess.TimeoutExpired as error:
+            stdout = error.stdout if isinstance(error.stdout, str) else ""
+            stderr = error.stderr if isinstance(error.stderr, str) else ""
             return AgentExecutionResult(
-                agent=self.name,
-                stage=stage,
-                success=False,
-                exit_code=-2,
-                stdout=e.stdout if isinstance(e.stdout, str) else "",
-                stderr=e.stderr if isinstance(e.stderr, str) else "",
+                agent=self.name, stage=stage, success=False, exit_code=-2,
+                stdout=self._cap(stdout)[0], stderr=self._cap(stderr)[0],
                 error_message=f"Execution timed out after {timeout_sec} seconds",
-                duration_sec=duration,
+                duration_sec=time.monotonic() - started,
             )
-        except Exception as e:
-            duration = time.time() - start_time
+        except OSError as error:
             return AgentExecutionResult(
-                agent=self.name,
-                stage=stage,
-                success=False,
-                exit_code=-3,
-                error_message=f"Subprocess execution failed: {str(e)}",
-                duration_sec=duration,
+                agent=self.name, stage=stage, success=False, exit_code=-3,
+                error_message=f"Subprocess execution failed: {error}",
+                duration_sec=time.monotonic() - started,
             )
 
-    def _extract_review_verdict(self, text: str) -> str:
-        """Parse review verdict (PASS, FIX_REQUIRED, BLOCKED)."""
-        upper = text.upper()
-        if "VERDICT: PASS" in upper or "판정: PASS" in upper or "판정: 통과" in upper:
-            return "PASS"
-        if "VERDICT: FIX_REQUIRED" in upper or "판정: FIX_REQUIRED" in upper or "판정: 수정 필요" in upper:
-            return "FIX_REQUIRED"
-        if "VERDICT: BLOCKED" in upper or "판정: BLOCKED" in upper or "판정: 차단" in upper:
-            return "BLOCKED"
-        # Fallback keyword checks
-        if "FIX_REQUIRED" in upper:
-            return "FIX_REQUIRED"
-        if "BLOCKED" in upper:
-            return "BLOCKED"
-        if "PASS" in upper and "FAIL" not in upper:
-            return "PASS"
-        return "PASS"  # Default assumption if successful review without explicit failure
+    def _cap(self, text: str) -> Tuple[str, bool]:
+        if len(text) <= self.max_output_chars:
+            return text, False
+        return text[: self.max_output_chars] + "\n[OUTPUT TRUNCATED]", True
+
+    @staticmethod
+    def _extract_review_verdict(text: str) -> Optional[str]:
+        non_empty = [line.strip() for line in text.splitlines() if line.strip()]
+        if not non_empty:
+            return None
+        match = re.fullmatch(r"(?i)(?:VERDICT|판정)\s*:\s*(PASS|FIX_REQUIRED|BLOCKED)", non_empty[-1])
+        return match.group(1).upper() if match else None

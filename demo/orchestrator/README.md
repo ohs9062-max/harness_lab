@@ -1,68 +1,61 @@
-# Harness Lab Orchestrator V1
+# Harness Lab Automatic Runner
 
-Harness Lab의 다중 AI (Claude / Codex / Gemini) 실제 CLI를 자동 호출하여 협업 Stage를 실행하는 로컬 기반 최소 오케스트레이터입니다.
+Python 표준 라이브러리만으로 실제 `claude`, `codex`, `gemini` CLI를 비대화형 실행한다. 자연어 요청 하나를 계획하고, 역할별 권한으로 실행하고, 산출물을 다음 Stage에 넘긴 뒤 테스트와 독립 검수/FIX 루프를 통과시킨다.
 
-## 1. 아키텍처 및 흐름
+## 모듈
+
+- `cli.py`: `--repo`, dry-run/execute, doctor, timeout, check 옵션
+- `coordinator.py`: AI JSON 계획 또는 deterministic 역할 라우팅
+- `models.py`: Stage/Plan/State 검증, read/write/system 권한, quorum, self-review 방지
+- `engine.py`: Agent 실행, fallback, handoff, CHECK, REVIEW/FIX, FINAL Gate
+- `checks.py`: Python/package.json 기반 검사 발견 및 shell 없는 실행
+- `git_state.py`: read-only Git Preflight와 실행 중 변경 파일 추적
+- `prompt_builder.py`: 역할별 지시와 크기 제한 inline handoff
+- `state.py`: atomic state, masked output, handoff, JSONL audit event
+- `adapters/`: Claude/Codex/Gemini 최소권한 CLI와 deterministic fake
+
+## CLI
+
+```bash
+python3 -m demo.orchestrator --doctor
+python3 -m demo.orchestrator "목표" --dry-run
+python3 -m demo.orchestrator "목표" --execute
+python3 -m demo.orchestrator "목표" --execute --deterministic-plan
+python3 -m demo.orchestrator "목표" --execute --repo /path/to/repo \
+  --check "python3 -m pytest -q" --max-review-cycles 2
+```
+
+기본값은 안전한 dry-run이다. 실제 호출은 `--execute`가 있어야 한다. `--deterministic-plan`은 Coordinator 모델 호출 없이 요청 키워드로 RESEARCH/DEVELOPMENT/MIXED를 분류하고 기본 MODE C 역할을 배치한다.
+
+## 권한과 실패 처리
+
+| 역할 | Claude | Codex | Gemini |
+|---|---|---|---|
+| read-only | `--permission-mode plan` | `--sandbox read-only` | `--approval-mode plan` |
+| write | `--permission-mode acceptEdits` | `--approve-for-me` | `--approval-mode auto_edit` |
+
+위험한 bypass/yolo 플래그는 사용하지 않는다. CLI 미인증·timeout·쿼터 실패는 해당 결과 파일에 남고 fallback이 있으면 다음 후보를 실행한다. 필수 성공 수(`min_success`)를 못 채우면 이후 Stage는 시작하지 않는다.
+
+## 런 기록
 
 ```text
-사용자 요청 (자연어 한 줄)
-       │
-       ▼
-[Coordinator AI (Codex)] ──> Stage Plan JSON 계약 생성 및 유효성 검증
-       │
-       ▼
-[Orchestrator Engine]
-       │
-       ├─▶ [RESEARCH Stage (PARALLEL)]
-       │     ├─ Claude  (worktree: task/<TASK-ID>/claude) ──> shared/RESEARCH.md (CLAUDE-Cxxx)
-       │     ├─ Codex   (worktree: task/<TASK-ID>/codex)  ──> shared/RESEARCH.md (CODEX-Cxxx)
-       │     └─ Gemini  (worktree: task/<TASK-ID>/gemini) ──> shared/RESEARCH.md (GEMINI-Cxxx)
-       │
-       │   [Required Agent Gate: 3개 AI 성공 검증]
-       │
-       ├─▶ [COMPARE Stage (PIPELINE: Gemini)] ──> shared/COMPARE.md (N-Cxxx 정규화)
-       ├─▶ [VERIFY Stage (PIPELINE: Codex)]   ──> Verified Set 확정
-       ├─▶ [SYNTHESIZE Stage (PIPELINE: Claude)] ──> artifacts/<output_artifact> 초안 작성
-       ├─▶ [REVIEW Stage (PIPELINE: Gemini)]  ──> shared/REVIEW.md (PASS / FIX_REQUIRED / BLOCKED)
-       │     └─ FIX_REQUIRED 시 FIX Stage (Claude) ──> fresh REVIEW Loop (최대 2회)
-       │
-       ▼
-[FINAL Stage (PIPELINE: User)] ──> 최종 산출물 완성 및 사용자 확인
+.harness/runs/<TASK-ID>/
+├── state.json
+├── handoff.json
+├── events.jsonl
+└── outputs/
+    ├── 001-DESIGN/claude.md
+    ├── 002-IMPLEMENT/codex.md
+    └── 003-REVIEW/gemini.md
 ```
 
-## 2. 주요 모듈 구성
+`.harness/`는 Git에서 제외한다. 일부 CLI가 ignored 파일 읽기를 막기 때문에 Runner는 선행 성공 결과의 최대 60,000자 excerpt와 CHECK 요약을 후속 prompt에 직접 포함한다.
 
-- `models.py`: TaskPlan, StageConfig, AgentExecutionResult, RuntimeState 데이터 모델
-- `coordinator.py`: Coordinator AI (Codex) 기반 Stage Plan JSON 생성 및 엄격한 유효성 검증
-- `prompt_builder.py`: Stage별/Agent별 구조화 프롬프트 생성기 (Namespace 규칙, Freshness Gate 포함)
-- `worktree.py`: Git Worktree 격리 및 안전한 Local Checkpoint 생성기 (No push, No merge)
-- `adapters/`: CLI 실행 어댑터
-  - `codex.py`: `codex exec` 비대화형 어댑터
-  - `claude.py`: `claude -p` 비대화형 어댑터
-  - `gemini.py`: `gemini -p` 비대화형 어댑터
-  - `fake.py`: 모의 테스트 및 단위 검증용 어댑터
-- `engine.py`: Stage Plan 실행 엔진 (Parallel 실행, Gate 검사, Review & Fix Loop 관리)
-- `state.py`: `.harness/runs/<TASK-ID>/state.json` 런타임 상태 및 마스킹된 로그 관리자
-- `cli.py`: CLI 진입점 (`python -m demo.orchestrator`)
+## 완료 조건
 
-## 3. 사용법
-
-### Dry-run (토큰 소비 없는 시뮬레이션)
-```bash
-python -m demo.orchestrator "네이버 블로그 상위노출 전략을 조사하고 검증된 최종 전략 결과물을 만들어줘." --dry-run
-```
-
-### 실제 실행 (Live AI CLI 호출)
-```bash
-python -m demo.orchestrator "네이버 블로그 상위노출 전략을 조사하고 검증된 최종 전략 결과물을 만들어줘." --execute
-```
-
-### 테스트 모드 (Fake Agent 기반 실행)
-```bash
-python -m demo.orchestrator "네이버 블로그 상위노출 전략 조사" --execute --fake-agents --deterministic-plan
-```
-
-### 테스트 러너 실행
-```bash
-python3 -m unittest discover -s demo/orchestrator/tests -p "test_*.py"
-```
+- 필수 Agent/quorum 성공
+- write Stage에서 실제 repository 변경 발생
+- 발견되거나 지정된 결정론적 검사 성공(없으면 `WAIVED`로 명시)
+- 독립 reviewer의 단일 명시 verdict `PASS`
+- 지정된 output artifact가 있다면 파일 존재와 비어 있지 않음 확인
+- Runner가 Git commit을 만들지 않았음

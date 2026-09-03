@@ -41,6 +41,7 @@
 - DESIGN과 결정, 입력 artifact와 실제 코드를 대조해 필요한 범위만 수정한다.
 - 자체 테스트는 구현 확인이지 독립 최종 REVIEW가 아니다.
 - 결과는 `shared/IMPLEMENTATION.md`에 branch, commit, 변경 파일과 검증 결과를 기록한다.
+- 자동 Runner에서는 workspace-write 구현자이며, commit 없이 실제 diff를 남긴 뒤 결정론적 CHECK에 넘긴다.
 
 ## 공통
 

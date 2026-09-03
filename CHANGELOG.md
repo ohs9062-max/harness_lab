@@ -75,3 +75,11 @@
 - COMPARE의 Normalized Claim(N-Cxxx)으로 의미가 같은 원본 Claim만 매핑하도록 했다.
 - 동일 원출처를 여러 독립 근거로 중복 계산하지 않도록 Source 관계 규칙을 명확히 했다.
 - 관련 작업: `TASK-2026-08-27-003`.
+
+## 2026-09-03 — 실행 가능한 멀티 AI Orchestrator 통합
+
+- 문서 계약 중심 V3에 실제 Claude/Codex/Gemini CLI 자동 실행 Runner를 연결했다.
+- 역할별 최소권한, fallback/quorum, 구조화된 인계와 감사 로그, 결정론적 CHECK 우선, 독립 REVIEW/FIX 재검사 Gate를 구현했다.
+- Stage별 분리 worktree와 자동 commit을 제거하고 MODE C 공유 작업 트리에서 결과가 실제로 이어지도록 정리했다.
+- 실제 fixture E2E와 31개 회귀 테스트, 독립 Antigravity 검수 PASS로 동작을 확인했다.
+- 관련 작업: `TASK-2026-09-03-001`.

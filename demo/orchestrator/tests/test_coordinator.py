@@ -1,122 +1,72 @@
-"""Tests for Coordinator Stage Plan JSON parsing and validation."""
+"""Coordinator and plan contract tests."""
 
-import json
 import unittest
+
 from demo.orchestrator.coordinator import Coordinator
-from demo.orchestrator.models import TaskPlan, StageConfig, TaskType, ExecutionMode
+from demo.orchestrator.models import TaskPlan
 
 
 class TestCoordinator(unittest.TestCase):
-
     def setUp(self):
-        self.coordinator = Coordinator(repo_root=".")
+        self.coordinator = Coordinator(".")
 
-    def test_valid_json_parsing(self):
-        sample_json = """{
-            "task_id": "TASK-2026-08-27-001",
-            "task_type": "RESEARCH",
-            "execution": "PARALLEL",
-            "output_artifact": "naver_blog_strategy.md",
-            "goal": "Test goal",
-            "scope": "Test scope",
-            "completion_criteria": "Test criteria",
-            "stages": [
-                {
-                    "name": "RESEARCH",
-                    "execution": "PARALLEL",
-                    "agents": ["claude", "codex", "gemini"],
-                    "required": true
-                },
-                {
-                    "name": "COMPARE",
-                    "execution": "PIPELINE",
-                    "agents": ["gemini"],
-                    "required": true
-                },
-                {
-                    "name": "FINAL",
-                    "execution": "PIPELINE",
-                    "agents": ["user"],
-                    "required": true
-                }
-            ]
-        }"""
-        plan_dict = self.coordinator._parse_json_safely(sample_json)
-        plan = TaskPlan.from_dict(plan_dict)
+    def test_deterministic_development_pipeline(self):
+        plan = self.coordinator.create_deterministic_plan("TASK-TEST-001", "코드를 구현해")
+        self.assertEqual(plan.task_type, "DEVELOPMENT")
+        self.assertEqual([stage.name for stage in plan.stages], ["DESIGN", "IMPLEMENT", "CHECK", "REVIEW", "FINAL"])
+        self.assertEqual(plan.stages[1].access, "WRITE")
+        self.assertNotEqual(plan.stages[1].agents, plan.stages[3].agents)
+
+    def test_deterministic_mixed_pipeline(self):
+        plan = self.coordinator.create_deterministic_plan("TASK-TEST-002", "분석해서 코드에 통합해")
+        self.assertEqual(plan.task_type, "MIXED")
+        self.assertEqual(plan.stages[0].execution, "PARALLEL")
         plan.validate()
-        self.assertEqual(plan.task_id, "TASK-2026-08-27-001")
-        self.assertEqual(len(plan.stages), 3)
-        self.assertEqual(plan.stages[0].name, "RESEARCH")
-        self.assertEqual(plan.stages[0].agents, ["claude", "codex", "gemini"])
-
-    def test_invalid_json_missing_stages(self):
-        invalid_json = """{
-            "task_id": "TASK-1",
-            "task_type": "RESEARCH",
-            "execution": "PARALLEL",
-            "output_artifact": "art.md",
-            "stages": []
-        }"""
-        plan_dict = self.coordinator._parse_json_safely(invalid_json)
-        plan = TaskPlan.from_dict(plan_dict)
-        with self.assertRaises(ValueError):
-            plan.validate()
-
-    def test_invalid_stage_name_rejected(self):
-        invalid_json = """{
-            "task_id": "TASK-1",
-            "task_type": "RESEARCH",
-            "execution": "PARALLEL",
-            "output_artifact": "art.md",
-            "stages": [
-                {
-                    "name": "INVALID_STAGE_NAME_XYZ",
-                    "execution": "PIPELINE",
-                    "agents": ["codex"],
-                    "required": true
-                }
-            ]
-        }"""
-        plan_dict = self.coordinator._parse_json_safely(invalid_json)
-        plan = TaskPlan.from_dict(plan_dict)
-        with self.assertRaises(ValueError):
-            plan.validate()
-
-    def test_invalid_agent_name_rejected(self):
-        invalid_json = """{
-            "task_id": "TASK-1",
-            "task_type": "RESEARCH",
-            "execution": "PARALLEL",
-            "output_artifact": "art.md",
-            "stages": [
-                {
-                    "name": "RESEARCH",
-                    "execution": "PIPELINE",
-                    "agents": ["unknown_bot"],
-                    "required": true
-                }
-            ]
-        }"""
-        plan_dict = self.coordinator._parse_json_safely(invalid_json)
-        plan = TaskPlan.from_dict(plan_dict)
-        with self.assertRaises(ValueError):
-            plan.validate()
 
     def test_code_fenced_json_extraction(self):
-        fenced_output = """Here is the plan:
-```json
-{
-  "task_type": "RESEARCH",
-  "execution": "PARALLEL",
-  "output_artifact": "result.md",
-  "stages": [
-    {"name": "RESEARCH", "execution": "PARALLEL", "agents": ["codex"], "required": true}
-  ]
-}
-```
-Done."""
-        plan_dict = self.coordinator._parse_json_safely(fenced_output)
-        self.assertEqual(plan_dict["task_type"], "RESEARCH")
+        parsed = self.coordinator._parse_json_safely('text\n```json\n{"task_type":"RESEARCH"}\n```')
+        self.assertEqual(parsed["task_type"], "RESEARCH")
+
+    def test_parallel_write_rejected(self):
+        plan = TaskPlan.from_dict({
+            "task_id": "TASK-X", "task_type": "DEVELOPMENT", "mode": "C", "output_artifact": "",
+            "stages": [
+                {"name": "IMPLEMENT", "execution": "PARALLEL", "agents": ["codex"], "access": "WRITE"},
+                {"name": "FINAL", "execution": "PIPELINE", "agents": ["system"], "access": "SYSTEM"},
+            ],
+        })
+        with self.assertRaises(ValueError):
+            plan.validate()
+
+    def test_self_review_rejected(self):
+        plan = TaskPlan.from_dict({
+            "task_id": "TASK-X", "task_type": "DEVELOPMENT", "mode": "C", "output_artifact": "",
+            "stages": [
+                {"name": "IMPLEMENT", "execution": "PIPELINE", "agents": ["codex"], "access": "WRITE"},
+                {"name": "REVIEW", "execution": "PIPELINE", "agents": ["codex"], "access": "READ_ONLY"},
+                {"name": "FINAL", "execution": "PIPELINE", "agents": ["system"], "access": "SYSTEM"},
+            ],
+        })
+        with self.assertRaises(ValueError):
+            plan.validate()
+
+    def test_review_requires_immediately_preceding_check(self):
+        plan = TaskPlan.from_dict({
+            "task_id": "TASK-X", "task_type": "DEVELOPMENT", "mode": "C", "output_artifact": "",
+            "stages": [
+                {"name": "IMPLEMENT", "execution": "PIPELINE", "agents": ["codex"], "access": "WRITE"},
+                {"name": "REVIEW", "execution": "PIPELINE", "agents": ["gemini"], "access": "READ_ONLY"},
+                {"name": "FINAL", "execution": "PIPELINE", "agents": ["system"], "access": "SYSTEM"},
+            ],
+        })
+        with self.assertRaisesRegex(ValueError, "immediately before REVIEW"):
+            plan.validate()
+
+    def test_reviewer_cannot_be_fix_agent(self):
+        plan = self.coordinator.create_deterministic_plan("TASK-X", "코드를 구현해")
+        plan.fix_agent = "gemini"
+        with self.assertRaisesRegex(ValueError, "fix_agent"):
+            plan.validate()
 
 
 if __name__ == "__main__":

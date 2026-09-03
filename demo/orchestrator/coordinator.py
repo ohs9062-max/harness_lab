@@ -1,4 +1,4 @@
-"""Coordinator V1 (Codex-based Stage Planning & JSON Contract)."""
+"""Turn one natural-language goal into a validated role pipeline."""
 
 from __future__ import annotations
 
@@ -8,140 +8,152 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from demo.orchestrator.adapters import get_adapter
-from demo.orchestrator.models import (
-    ExecutionMode,
-    StageConfig,
-    StageStatus,
-    TaskPlan,
-    TaskType,
-)
-from demo.orchestrator.prompt_builder import is_freshness_required
+from demo.orchestrator.models import AccessMode, ExecutionMode, StageConfig, TaskPlan, TaskType
 
 
 class Coordinator:
-    """
-    Coordinator analyzes user input and outputs a machine-readable Stage Plan JSON.
-    In V1, Coordinator is fixed to Codex (executed in an independent session).
-    """
+    COORDINATOR_PROMPT = """You are the Harness Lab coordinator. Return only one JSON object.
+Build the smallest safe MODE C plan that completes the request using installed Claude, Codex, and Gemini CLIs.
+Separate creators from reviewers. Deterministic CHECK must occur immediately before REVIEW.
+Allowed stage names: ANALYZE, RESEARCH, DESIGN, IMPLEMENT, SYNTHESIZE, CHECK, REVIEW, FINAL.
+Allowed agents: claude, codex, gemini, system. Parallel stages MUST be READ_ONLY.
+IMPLEMENT and SYNTHESIZE use WRITE. CHECK and FINAL use SYSTEM. REVIEW uses READ_ONLY.
+Use Claude primarily for analysis/design/synthesis, Codex for implementation, Gemini for adversarial review.
+Do not include shell commands. For code work output_artifact may be an empty string; code changes are the result.
 
-    COORDINATOR_SYSTEM_PROMPT = """You are the Harness Lab Coordinator (Codex).
-Your job is to analyze the user request and return ONLY a valid, machine-readable JSON Stage Plan.
-Do NOT include any conversational preamble, markdown code fence, or explanation. Output pure JSON only.
-
-JSON SCHEMA:
+Schema:
 {
-  "task_type": "RESEARCH" | "DEVELOPMENT" | "MIXED",
-  "execution": "PIPELINE" | "PARALLEL",
-  "input_artifact": string | null,
-  "output_artifact": string,
-  "goal": string,
-  "scope": string,
-  "completion_criteria": string,
-  "stages": [
-    {
-      "name": "DEFINE" | "RESEARCH" | "COMPARE" | "VERIFY" | "SYNTHESIZE" | "DESIGN" | "IMPLEMENT" | "REVIEW" | "FINAL",
-      "execution": "PIPELINE" | "PARALLEL",
-      "agents": ["claude" | "codex" | "gemini" | "user"],
-      "required": boolean
-    }
-  ]
+  "task_type": "RESEARCH|DEVELOPMENT|MIXED",
+  "mode": "C",
+  "output_artifact": "relative/path/or/empty",
+  "goal": "string",
+  "scope": "string",
+  "completion_criteria": "string",
+  "fix_agent": "claude|codex|gemini",
+  "stages": [{
+    "name": "allowed stage",
+    "execution": "PIPELINE|PARALLEL",
+    "agents": ["allowed agent"],
+    "fallback_agents": ["optional fallback agent"],
+    "min_success": 1,
+    "role": "short role name",
+    "access": "READ_ONLY|WRITE|SYSTEM",
+    "required": true
+  }]
 }
-
-POLICY RULES:
-1. For Research/Strategy tasks (requests containing 조사, 전략, 비교, 최신, 분석, 검증, etc.), ALWAYS configure:
-   - task_type: "RESEARCH"
-   - execution: "PARALLEL"
-   - RESEARCH stage: execution "PARALLEL", agents ["claude", "codex", "gemini"], required: true
-   - COMPARE stage: execution "PIPELINE", agents ["gemini"], required: true
-   - VERIFY stage: execution "PIPELINE", agents ["codex"], required: true
-   - SYNTHESIZE stage: execution "PIPELINE", agents ["claude"], required: true
-   - REVIEW stage: execution "PIPELINE", agents ["gemini"], required: true
-   - FINAL stage: execution "PIPELINE", agents ["user"], required: true
-2. For Development tasks, configure DESIGN -> IMPLEMENT -> REVIEW -> FINAL.
 """
 
     def __init__(self, repo_root: str):
         self.repo_root = repo_root
 
-    def create_deterministic_research_plan(
-        self,
-        task_id: str,
-        user_request: str,
-        output_artifact: str = "naver_blog_strategy.md",
-    ) -> TaskPlan:
-        """Fallback / Deterministic default plan for Research tasks."""
-        stages = [
-            StageConfig(name="RESEARCH", execution="PARALLEL", agents=["claude", "codex", "gemini"], required=True),
-            StageConfig(name="COMPARE", execution="PIPELINE", agents=["gemini"], required=True),
-            StageConfig(name="VERIFY", execution="PIPELINE", agents=["codex"], required=True),
-            StageConfig(name="SYNTHESIZE", execution="PIPELINE", agents=["claude"], required=True),
-            StageConfig(name="REVIEW", execution="PIPELINE", agents=["gemini"], required=True),
-            StageConfig(name="FINAL", execution="PIPELINE", agents=["user"], required=True),
-        ]
-        return TaskPlan(
+    @staticmethod
+    def _stage(
+        name: str, agents: list[str], access: str, role: str,
+        execution: str = "PIPELINE", fallback_agents: Optional[list[str]] = None,
+        min_success: int = 0,
+    ) -> StageConfig:
+        return StageConfig(
+            name=name, execution=execution, agents=agents,
+            fallback_agents=fallback_agents or [], access=access, role=role, required=True,
+            min_success=min_success,
+        )
+
+    def create_deterministic_plan(self, task_id: str, user_request: str) -> TaskPlan:
+        lowered = user_request.lower()
+        research = any(word in lowered for word in ("조사", "분석", "비교", "리서치", "research", "analyze", "compare"))
+        development = any(word in lowered for word in (
+            "구현", "코드", "수정", "통합", "개발", "만들", "build", "implement", "fix", "refactor",
+        ))
+        task_type = TaskType.MIXED if research and development else TaskType.RESEARCH if research else TaskType.DEVELOPMENT
+        read = AccessMode.READ_ONLY.value
+        write = AccessMode.WRITE.value
+        system = AccessMode.SYSTEM.value
+
+        if task_type == TaskType.RESEARCH:
+            output = f"artifacts/{task_id}/result.md"
+            stages = [
+                self._stage("RESEARCH", ["claude", "codex", "gemini"], read, "independent researcher", "PARALLEL", min_success=2),
+                self._stage("SYNTHESIZE", ["claude"], write, "evidence synthesizer", fallback_agents=["codex"]),
+                self._stage("CHECK", ["system"], system, "deterministic verifier"),
+                self._stage("REVIEW", ["gemini"], read, "independent reviewer"),
+                self._stage("FINAL", ["system"], system, "completion gate"),
+            ]
+        else:
+            output = ""
+            first_name = "ANALYZE" if task_type == TaskType.MIXED else "DESIGN"
+            first_agents = ["claude", "gemini"] if task_type == TaskType.MIXED else ["claude"]
+            first_execution = "PARALLEL" if len(first_agents) > 1 else "PIPELINE"
+            stages = [
+                self._stage(first_name, first_agents, read, "planner", first_execution, min_success=1),
+                self._stage("DESIGN", ["claude"], read, "architect", fallback_agents=["gemini"]) if first_name != "DESIGN" else None,
+                self._stage("IMPLEMENT", ["codex"], write, "implementer", fallback_agents=["claude"]),
+                self._stage("CHECK", ["system"], system, "deterministic verifier"),
+                self._stage("REVIEW", ["gemini"], read, "independent reviewer"),
+                self._stage("FINAL", ["system"], system, "completion gate"),
+            ]
+            stages = [stage for stage in stages if stage is not None]
+            if first_name == "DESIGN":
+                stages[0].fallback_agents = ["gemini"]
+
+        plan = TaskPlan(
             task_id=task_id,
-            task_type=TaskType.RESEARCH.value,
-            execution=ExecutionMode.PARALLEL.value,
-            input_artifact=None,
-            output_artifact=output_artifact,
-            goal=f"Execute research and synthesis for: {user_request}",
-            scope="Comprehensive multi-agent investigation and verification",
-            completion_criteria="Independent review PASS and artifact generation",
+            task_type=task_type.value,
+            mode="C",
+            output_artifact=output,
+            goal=user_request,
+            scope="Only the requested repository and goal",
+            completion_criteria="Deterministic checks succeed and independent review returns PASS",
+            fix_agent="codex",
             stages=stages,
         )
-
-    def generate_plan(
-        self,
-        user_request: str,
-        task_id: Optional[str] = None,
-        use_fake: bool = False,
-        use_deterministic: bool = False,
-    ) -> TaskPlan:
-        """Generate and validate a TaskPlan from user request."""
-        if not task_id:
-            task_id = f"TASK-{datetime.now().strftime('%Y-%m-%d')}-{int(datetime.now().timestamp()) % 1000:03d}"
-
-        if use_deterministic or use_fake:
-            plan = self.create_deterministic_research_plan(task_id, user_request)
-            plan.validate()
-            return plan
-
-        # Call real Coordinator (Codex)
-        adapter = get_adapter("codex")
-        prompt = f"{self.COORDINATOR_SYSTEM_PROMPT}\n\nUSER REQUEST:\n{user_request}"
-
-        result = adapter.run(
-            prompt=prompt,
-            cwd=self.repo_root,
-            stage="COORDINATOR",
-            timeout_sec=120,
-        )
-
-        if not result.success:
-            raise RuntimeError(f"Coordinator failed to generate plan: {result.error_message}")
-
-        raw_output = result.stdout.strip()
-        plan_dict = self._parse_json_safely(raw_output)
-        plan_dict["task_id"] = task_id
-
-        plan = TaskPlan.from_dict(plan_dict)
         plan.validate()
         return plan
 
-    def _parse_json_safely(self, text: str) -> Dict[str, Any]:
-        """Extract and parse JSON from model output."""
+    # Kept for callers of the V1 public method.
+    def create_deterministic_research_plan(
+        self, task_id: str, user_request: str, output_artifact: str = "result.md",
+    ) -> TaskPlan:
+        plan = self.create_deterministic_plan(task_id, "research: " + user_request)
+        plan.output_artifact = f"artifacts/{task_id}/{output_artifact}"
+        return plan
+
+    def generate_plan(
+        self, user_request: str, task_id: Optional[str] = None,
+        use_fake: bool = False, use_deterministic: bool = False,
+    ) -> TaskPlan:
+        task_id = task_id or f"TASK-{datetime.now().strftime('%Y-%m-%d-%H%M%S')}"
+        if use_fake or use_deterministic:
+            return self.create_deterministic_plan(task_id, user_request)
+
+        result = get_adapter("codex").run(
+            prompt=f"{self.COORDINATOR_PROMPT}\n\nUSER REQUEST:\n{user_request}",
+            cwd=self.repo_root,
+            stage="COORDINATOR",
+            timeout_sec=180,
+            access=AccessMode.READ_ONLY.value,
+        )
+        if not result.success:
+            raise RuntimeError(f"Coordinator failed: {result.error_message}")
+        data = self._parse_json_safely(result.stdout)
+        data["task_id"] = task_id
+        plan = TaskPlan.from_dict(data)
+        plan.validate()
+        return plan
+
+    @staticmethod
+    def _parse_json_safely(text: str) -> Dict[str, Any]:
         try:
-            return json.loads(text)
+            value = json.loads(text)
+            if isinstance(value, dict):
+                return value
         except json.JSONDecodeError:
             pass
-
-        # Try regex search for code block or first JSON object
-        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-        if match:
-            return json.loads(match.group(1))
-
-        match = re.search(r"(\{.*\})", text, re.DOTALL)
-        if match:
-            return json.loads(match.group(1))
-
-        raise ValueError(f"Failed to parse valid JSON from Coordinator output:\n{text}")
+        fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+        candidate = fenced.group(1) if fenced else None
+        if candidate is None:
+            first, last = text.find("{"), text.rfind("}")
+            candidate = text[first:last + 1] if first >= 0 and last > first else ""
+        value = json.loads(candidate)
+        if not isinstance(value, dict):
+            raise ValueError("Coordinator output must be a JSON object")
+        return value

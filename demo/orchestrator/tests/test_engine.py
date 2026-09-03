@@ -1,133 +1,206 @@
-"""Comprehensive workflow and gate tests for OrchestratorEngine."""
+"""End-to-end engine tests with isolated Git repositories and fake agents."""
 
+import json
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+
 from demo.orchestrator.engine import OrchestratorEngine
-from demo.orchestrator.models import (
-    ExecutionMode,
-    StageConfig,
-    StageStatus,
-    TaskPlan,
-    TaskType,
-)
+from demo.orchestrator.models import AccessMode, RuntimeState, StageConfig, TaskPlan
 
 
 class TestEngineWorkflows(unittest.TestCase):
-
     def setUp(self):
         self.temp_dir = tempfile.mkdtemp(prefix="harness_test_")
         self.repo_root = Path(self.temp_dir)
-
-        # Initialize mock git environment
-        import subprocess
-        subprocess.run(["git", "init"], cwd=str(self.repo_root), capture_output=True, check=True)
-        subprocess.run(["git", "config", "user.name", "TestUser"], cwd=str(self.repo_root), check=True)
-        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=str(self.repo_root), check=True)
-
-        gitignore = self.repo_root / ".gitignore"
-        gitignore.write_text(".harness/\n", encoding="utf-8")
-
-        readme = self.repo_root / "README.md"
-        readme.write_text("# Test Repo", encoding="utf-8")
-        subprocess.run(["git", "add", "."], cwd=str(self.repo_root), check=True)
-        subprocess.run(["git", "commit", "-m", "initial commit"], cwd=str(self.repo_root), check=True)
+        subprocess.run(["git", "init", "-q"], cwd=self.repo_root, check=True)
+        subprocess.run(["git", "config", "user.name", "Test User"], cwd=self.repo_root, check=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=self.repo_root, check=True)
+        (self.repo_root / ".gitignore").write_text(".harness/\n", encoding="utf-8")
+        (self.repo_root / "README.md").write_text("# fixture\n", encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=self.repo_root, check=True)
+        subprocess.run(["git", "commit", "-q", "-m", "initial"], cwd=self.repo_root, check=True)
+        self.initial_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=self.repo_root, capture_output=True, text=True, check=True,
+        ).stdout.strip()
 
     def tearDown(self):
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    def _create_sample_plan(self, task_id="TASK-TEST-001") -> TaskPlan:
-        stages = [
-            StageConfig(name="RESEARCH", execution="PARALLEL", agents=["claude", "codex", "gemini"], required=True),
-            StageConfig(name="COMPARE", execution="PIPELINE", agents=["gemini"], required=True),
-            StageConfig(name="VERIFY", execution="PIPELINE", agents=["codex"], required=True),
-            StageConfig(name="SYNTHESIZE", execution="PIPELINE", agents=["claude"], required=True),
-            StageConfig(name="REVIEW", execution="PIPELINE", agents=["gemini"], required=True),
-            StageConfig(name="FINAL", execution="PIPELINE", agents=["user"], required=True),
-        ]
+    def plan(self, task_id: str = "TASK-TEST-001") -> TaskPlan:
         return TaskPlan(
             task_id=task_id,
-            task_type=TaskType.RESEARCH.value,
-            execution=ExecutionMode.PARALLEL.value,
-            output_artifact="strategy.md",
-            stages=stages,
+            task_type="DEVELOPMENT",
+            mode="C",
+            output_artifact="",
+            fix_agent="codex",
+            stages=[
+                StageConfig("DESIGN", "PIPELINE", ["claude"], "planner", "READ_ONLY"),
+                StageConfig("IMPLEMENT", "PIPELINE", ["codex"], "implementer", "WRITE"),
+                StageConfig("CHECK", "PIPELINE", ["system"], "checker", "SYSTEM"),
+                StageConfig("REVIEW", "PIPELINE", ["gemini"], "reviewer", "READ_ONLY"),
+                StageConfig("FINAL", "PIPELINE", ["system"], "finalizer", "SYSTEM"),
+            ],
         )
 
-    def test_dry_run_simulation(self):
-        plan = self._create_sample_plan("TASK-DRYRUN-001")
-        engine = OrchestratorEngine(repo_root=str(self.repo_root), use_fake_agents=True)
+    def engine(self, **kwargs) -> OrchestratorEngine:
+        return OrchestratorEngine(
+            str(self.repo_root), use_fake_agents=True, auto_discover_checks=False, **kwargs,
+        )
 
-        state = engine.run_plan(plan=plan, user_request="Naver blog SEO research", dry_run=True, execute=False)
+    def test_dry_run_starts_no_workers(self):
+        state = self.engine().run_plan(self.plan("TASK-DRY"), "implement", dry_run=True, execute=False)
         self.assertEqual(state.status, "DRY_RUN_COMPLETED")
-        self.assertEqual(state.stage_statuses.get("RESEARCH"), StageStatus.DONE.value)
-        self.assertEqual(state.stage_statuses.get("REVIEW"), StageStatus.DONE.value)
+        self.assertFalse(state.agent_results)
 
-    def test_full_workflow_success_with_fake_agents(self):
-        plan = self._create_sample_plan("TASK-EXEC-SUCCESS-001")
-        engine = OrchestratorEngine(
-            repo_root=str(self.repo_root),
-            use_fake_agents=True,
-            fake_options={"force_success": True, "review_verdict": "PASS"},
+    def test_successful_pipeline_hands_outputs_to_next_stages(self):
+        state = self.engine(fake_options={"review_verdict": "PASS"}).run_plan(
+            self.plan("TASK-SUCCESS"), "implement", dry_run=False, execute=True,
         )
-
-        state = engine.run_plan(plan=plan, user_request="Full workflow test", dry_run=False, execute=True)
         self.assertEqual(state.status, "DONE")
-        self.assertEqual(state.stage_statuses["RESEARCH"], StageStatus.DONE.value)
-        self.assertEqual(state.stage_statuses["COMPARE"], StageStatus.DONE.value)
-        self.assertEqual(state.stage_statuses["SYNTHESIZE"], StageStatus.DONE.value)
-        self.assertEqual(state.stage_statuses["REVIEW"], StageStatus.DONE.value)
-        self.assertEqual(state.stage_statuses["FINAL"], StageStatus.DONE.value)
+        self.assertEqual(state.stage_statuses["CHECK"], "WAIVED")
+        self.assertTrue(any(item["stage"] == "DESIGN" for item in state.handoffs))
+        handoff = json.loads((self.repo_root / ".harness/runs/TASK-SUCCESS/handoff.json").read_text())
+        self.assertGreaterEqual(len(handoff["outputs"]), 3)
+        self.assertEqual(subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=self.repo_root, capture_output=True, text=True, check=True,
+        ).stdout.strip(), self.initial_head, "runner must not auto-commit")
 
-    def test_required_agent_gate_blocking(self):
-        """If one required agent in PARALLEL fails, subsequent stages must be blocked."""
-        plan = self._create_sample_plan("TASK-GATE-FAIL-001")
-
-        # Engine with failing agents
-        engine = OrchestratorEngine(
-            repo_root=str(self.repo_root),
-            use_fake_agents=True,
-            fake_options={"force_success": False, "exit_code": 1},
+    def test_required_agent_failure_blocks_pipeline(self):
+        state = self.engine(fake_options={"force_success": False}).run_plan(
+            self.plan("TASK-FAIL"), "implement", dry_run=False, execute=True,
         )
-
-        state = engine.run_plan(plan=plan, user_request="Test failure gate", dry_run=False, execute=True)
         self.assertEqual(state.status, "BLOCKED")
-        self.assertEqual(state.stage_statuses["RESEARCH"], StageStatus.BLOCKED.value)
-        # COMPARE and SYNTHESIZE should not be in state.stage_statuses or should remain PENDING
-        self.assertNotIn("COMPARE", state.stage_statuses)
-        self.assertNotIn("SYNTHESIZE", state.stage_statuses)
+        self.assertEqual(state.stage_statuses["DESIGN"], "BLOCKED")
+        self.assertNotIn("IMPLEMENT", state.stage_statuses)
 
-    def test_parallel_worktree_isolation(self):
-        """Verify that parallel agents are assigned distinct isolated worktree paths."""
-        plan = self._create_sample_plan("TASK-ISOLATION-001")
-        engine = OrchestratorEngine(repo_root=str(self.repo_root), use_fake_agents=True)
+    def test_pipeline_uses_fallback_after_primary_failure(self):
+        plan = self.plan("TASK-FALLBACK")
+        plan.stages[0].fallback_agents = ["gemini"]
+        engine = self.engine(fake_options={"review_verdict": "PASS"})
+        original = engine._get_adapter
 
-        state = engine.run_plan(plan=plan, user_request="Worktree test", dry_run=False, execute=True)
-        wt_claude = state.worktrees.get("RESEARCH_claude")
-        wt_codex = state.worktrees.get("RESEARCH_codex")
-        wt_gemini = state.worktrees.get("RESEARCH_gemini")
+        def adapter(agent):
+            value = original(agent)
+            if agent == "claude":
+                value.force_success = False
+            return value
 
-        self.assertIsNotNone(wt_claude)
-        self.assertIsNotNone(wt_codex)
-        self.assertIsNotNone(wt_gemini)
-        # Ensure all 3 paths are distinct
-        self.assertNotEqual(wt_claude, wt_codex)
-        self.assertNotEqual(wt_codex, wt_gemini)
-        self.assertNotEqual(wt_claude, wt_gemini)
+        engine._get_adapter = adapter
+        state = engine.run_plan(plan, "implement", dry_run=False, execute=True)
+        self.assertEqual(state.status, "DONE")
+        design = [item for item in state.handoffs if item["stage"] == "DESIGN"]
+        self.assertEqual([(item["agent"], item["success"]) for item in design], [("claude", False), ("gemini", True)])
 
-    def test_max_review_cycles_blocking(self):
-        """Verify that continuous FIX_REQUIRED verdict halts after max_review_cycles."""
-        plan = self._create_sample_plan("TASK-REVIEW-LOOP-001")
-        engine = OrchestratorEngine(
-            repo_root=str(self.repo_root),
-            use_fake_agents=True,
-            fake_options={"force_success": True, "review_verdict": "FIX_REQUIRED"},
-            max_review_cycles=2,
+    def test_parallel_stage_allows_explicit_quorum(self):
+        plan = self.plan("TASK-QUORUM")
+        plan.stages[0] = StageConfig(
+            "ANALYZE", "PARALLEL", ["claude", "gemini"], "analyst", "READ_ONLY", min_success=1,
         )
+        engine = self.engine(fake_options={"review_verdict": "PASS"})
+        original = engine._get_adapter
 
-        state = engine.run_plan(plan=plan, user_request="Test review loop", dry_run=False, execute=True)
+        def adapter(agent):
+            value = original(agent)
+            if agent == "claude":
+                value.force_success = False
+            return value
+
+        engine._get_adapter = adapter
+        state = engine.run_plan(plan, "analyze and implement", dry_run=False, execute=True)
+        self.assertEqual(state.status, "DONE")
+
+    def test_missing_review_verdict_blocks(self):
+        state = self.engine(fake_options={"review_verdict": None}).run_plan(
+            self.plan("TASK-NO-VERDICT"), "implement", dry_run=False, execute=True,
+        )
         self.assertEqual(state.status, "BLOCKED")
-        self.assertGreaterEqual(state.review_cycles, 2)
+        self.assertIn("verdict", state.blocker)
+
+    def test_review_fallback_ignores_failed_primary_verdict(self):
+        plan = self.plan("TASK-REVIEW-FALLBACK")
+        plan.stages[3].fallback_agents = ["fake"]
+        engine = self.engine(fake_options={"review_verdict": "PASS"})
+        original = engine._get_adapter
+
+        def adapter(agent):
+            value = original(agent)
+            if agent == "gemini":
+                value.force_success = False
+            return value
+
+        engine._get_adapter = adapter
+        state = engine.run_plan(plan, "implement", dry_run=False, execute=True)
+        self.assertEqual(state.status, "DONE")
+
+    def test_fix_then_fresh_review_passes(self):
+        state = self.engine(fake_options={"review_sequence": ["FIX_REQUIRED", "PASS"]}).run_plan(
+            self.plan("TASK-FIX"), "implement", dry_run=False, execute=True,
+        )
+        self.assertEqual(state.status, "DONE")
+        self.assertEqual(state.review_cycles, 1)
+        self.assertTrue((self.repo_root / "fake-fix.txt").exists())
+
+    def test_fix_uses_the_actual_fallback_implementer(self):
+        plan = self.plan("TASK-ACTUAL-FIXER")
+        plan.stages[1].fallback_agents = ["claude"]
+        engine = self.engine(fake_options={"review_sequence": ["FIX_REQUIRED", "PASS"]})
+        original = engine._get_adapter
+
+        def adapter(agent):
+            value = original(agent)
+            if agent == "codex":
+                value.force_success = False
+            return value
+
+        engine._get_adapter = adapter
+        state = engine.run_plan(plan, "implement", dry_run=False, execute=True)
+        self.assertEqual(state.status, "DONE")
+        self.assertEqual((self.repo_root / "fake-fix.txt").read_text(), "claude completed FIX\n")
+
+    def test_repeated_fix_required_hits_cycle_limit(self):
+        state = self.engine(
+            fake_options={"review_verdict": "FIX_REQUIRED"}, max_review_cycles=1,
+        ).run_plan(self.plan("TASK-LIMIT"), "implement", dry_run=False, execute=True)
+        self.assertEqual(state.status, "BLOCKED")
+        self.assertIn("maximum fix cycles", state.blocker)
+
+    def test_failed_deterministic_check_stops_before_review(self):
+        state = self.engine(
+            fake_options={"review_verdict": "PASS"},
+            check_commands=[[sys.executable, "-c", "raise SystemExit(7)"]],
+        ).run_plan(self.plan("TASK-CHECK-FAIL"), "implement", dry_run=False, execute=True)
+        self.assertEqual(state.status, "BLOCKED")
+        self.assertEqual(state.stage_statuses["CHECK"], "BLOCKED")
+        self.assertFalse(any(item["stage"] == "REVIEW" for item in state.handoffs))
+
+    def test_parallel_read_outputs_are_isolated(self):
+        plan = self.plan("TASK-PARALLEL")
+        plan.stages[0] = StageConfig(
+            "ANALYZE", "PARALLEL", ["claude", "gemini"], "analyst", AccessMode.READ_ONLY.value,
+        )
+        state = self.engine(fake_options={"review_verdict": "PASS"}).run_plan(
+            plan, "analyze and implement", dry_run=False, execute=True,
+        )
+        design_outputs = [item["output_file"] for item in state.handoffs if item["stage"] == "ANALYZE"]
+        self.assertEqual(len(design_outputs), 2)
+        self.assertEqual(len(set(design_outputs)), 2)
+        self.assertTrue(all((self.repo_root / path).is_file() for path in design_outputs))
+
+    def test_handoff_excerpt_prioritizes_output_over_long_stderr(self):
+        path = self.repo_root / ".harness/runs/TASK-EXCERPT/outputs/001-DESIGN/claude.md"
+        path.parent.mkdir(parents=True)
+        path.write_text("# DESIGN\n\n## Output\nIMPORTANT DESIGN\n\n## Stderr\n" + "x" * 20_000)
+        state = RuntimeState(
+            task_id="TASK-EXCERPT", status="RUNNING", user_request="x",
+            handoffs=[{"stage": "DESIGN", "agent": "claude", "success": True, "output_file": str(path.relative_to(self.repo_root))}],
+        )
+        excerpt = self.engine()._handoff_excerpt(state)
+        self.assertIn("IMPORTANT DESIGN", excerpt)
+        self.assertLess(len(excerpt), 13_000)
 
 
 if __name__ == "__main__":

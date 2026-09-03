@@ -35,6 +35,7 @@
 - 기본 담당: ANALYZE / DESIGN
 - 설계, 영향 범위, 제약, 검증 기준을 `shared/DESIGN.md`에 기록한다.
 - 실제 코드 확인 없이 설계를 확정하지 않는다.
+- 자동 Runner에서는 기본 read-only planner이며 CLI 실패 시 계획된 fallback Agent가 역할을 이어받을 수 있다.
 
 ## 공통
 

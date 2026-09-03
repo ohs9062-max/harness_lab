@@ -1,7 +1,7 @@
-"""Runner for all Orchestrator V1 Unit and Integration Tests."""
+"""Runner for all orchestrator unit and integration tests."""
 
-import unittest
 import sys
+import unittest
 from pathlib import Path
 
 # Add repo root to sys.path
@@ -9,17 +9,10 @@ repo_root = Path(__file__).resolve().parent.parent.parent.parent
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
-from demo.orchestrator.tests.test_coordinator import TestCoordinator
-from demo.orchestrator.tests.test_adapters import TestAdapters
-from demo.orchestrator.tests.test_engine import TestEngineWorkflows
-
-
 def suite():
-    s = unittest.TestSuite()
-    s.addTest(unittest.makeSuite(TestCoordinator))
-    s.addTest(unittest.makeSuite(TestAdapters))
-    s.addTest(unittest.makeSuite(TestEngineWorkflows))
-    return s
+    return unittest.defaultTestLoader.discover(
+        str(Path(__file__).resolve().parent), pattern="test_*.py"
+    )
 
 
 if __name__ == "__main__":
